@@ -35,7 +35,7 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
     setUploading(true)
 
     try {
-      // Validar e comprimir arquivos
+      // Validar arquivos
       const validFiles: File[] = []
 
       for (const file of fileArray) {
@@ -44,9 +44,7 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
           alert(`Erro no arquivo ${file.name}: ${validation.error}`)
           continue
         }
-
-        const compressedFile = await StorageService.compressImage(file)
-        validFiles.push(compressedFile)
+        validFiles.push(file)
       }
 
       if (validFiles.length === 0) {
@@ -54,7 +52,7 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
         return
       }
 
-      // Upload das imagens
+      // Upload das imagens (sistema offline)
       const uploadResults = await StorageService.uploadMultipleImages(validFiles)
       const newImageUrls = uploadResults.map((result) => result.url)
 
@@ -92,17 +90,23 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
   const removeImage = async (index: number) => {
     try {
       const imageUrl = images[index]
-      const urlParts = imageUrl.split("/")
-      const pathname = urlParts[urlParts.length - 1]
 
-      await StorageService.deleteImage(pathname)
+      // Extrair pathname da URL do placeholder para deletar do storage
+      const urlParts = imageUrl.split("text=")
+      if (urlParts.length > 1) {
+        const pathname = `products/${Date.now()}-${decodeURIComponent(urlParts[1])}`
+        await StorageService.deleteImage(pathname)
+      }
 
       const updatedImages = images.filter((_, i) => i !== index)
       setImages(updatedImages)
       onImagesUploaded(updatedImages)
     } catch (error) {
       console.error("Error removing image:", error)
-      alert("Erro ao remover imagem")
+      // Mesmo com erro, remove da interface
+      const updatedImages = images.filter((_, i) => i !== index)
+      setImages(updatedImages)
+      onImagesUploaded(updatedImages)
     }
   }
 
@@ -142,6 +146,7 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
             <p className="text-xs text-gray-500">
               PNG, JPG, WebP até 5MB ({images.length}/{maxImages})
             </p>
+            <p className="text-xs text-blue-500 mt-1">💡 Sistema offline - Imagens simuladas</p>
           </div>
         </div>
       </div>
@@ -172,6 +177,8 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
               {index === 0 && (
                 <div className="absolute top-2 left-2 bg-pink-500 text-white text-xs px-2 py-1 rounded">Principal</div>
               )}
+
+              <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">Offline</div>
             </motion.div>
           ))}
         </div>
