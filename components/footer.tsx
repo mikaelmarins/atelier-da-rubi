@@ -1,5 +1,4 @@
-import { Heart, Instagram, Phone, MapPin, Truck, Settings } from "lucide-react"
-import Link from "next/link"
+import { Heart, Instagram, Phone, MapPin, Truck } from "lucide-react"
 
 export default function Footer() {
   return (
@@ -63,13 +62,6 @@ export default function Footer() {
                 >
                   <Phone className="h-6 w-6" />
                 </a>
-                <Link
-                  href="/admin"
-                  className="text-gray-300 hover:text-purple-400 transition-colors"
-                  aria-label="Área Administrativa"
-                >
-                  <Settings className="h-6 w-6" />
-                </Link>
               </div>
               <div className="text-center">
                 <a
@@ -114,13 +106,6 @@ export default function Footer() {
               >
                 <Phone className="h-6 w-6" />
               </a>
-              <Link
-                href="/admin"
-                className="text-gray-300 hover:text-purple-400 transition-colors"
-                aria-label="Área Administrativa"
-              >
-                <Settings className="h-6 w-6" />
-              </Link>
             </div>
           </div>
 
@@ -153,12 +138,6 @@ export default function Footer() {
                 >
                   @atelierdarubi
                 </a>
-              </div>
-              <div className="flex items-center space-x-3">
-                <Settings className="h-5 w-5 text-purple-400 flex-shrink-0" />
-                <Link href="/admin" className="text-gray-300 hover:text-purple-400 transition-colors">
-                  Área Admin
-                </Link>
               </div>
             </div>
           </div>

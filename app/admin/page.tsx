@@ -1,13 +1,10 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Plus, Edit, Trash2, Eye, Settings, ImageIcon, Shuffle, GripVertical, X, Save } from "lucide-react"
+import { Plus, Edit, Eye, ImageIcon, Shuffle, BarChart3, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
 import type { Product } from "@/data/products"
 import { products } from "@/data/products"
 import NextImage from "next/image"
@@ -16,14 +13,9 @@ import Link from "next/link"
 export default function AdminPage() {
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-  const [showCarouselManager, setShowCarouselManager] = useState(false)
-  const [selectedProducts, setSelectedProducts] = useState<number[]>([])
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
-  const [carouselLoading, setCarouselLoading] = useState(false)
 
   useEffect(() => {
     loadProducts()
-    loadCarouselConfig()
   }, [])
 
   const loadProducts = async () => {
@@ -54,16 +46,6 @@ export default function AdminPage() {
     }
   }
 
-  const loadCarouselConfig = () => {
-    const savedCarousel = localStorage.getItem("carousel-products")
-    if (savedCarousel) {
-      setSelectedProducts(JSON.parse(savedCarousel))
-    } else {
-      // IDs padrão do carrossel
-      setSelectedProducts([1, 2, 3, 4, 5])
-    }
-  }
-
   const handleDeleteProduct = async (id: number) => {
     if (!confirm("Tem certeza que deseja deletar este produto?")) return
 
@@ -78,68 +60,21 @@ export default function AdminPage() {
     }
   }
 
-  // Funções do Carrossel
-  const handleProductToggle = (productId: number, checked: boolean) => {
-    if (checked) {
-      if (selectedProducts.length < 8) {
-        setSelectedProducts([...selectedProducts, productId])
-      } else {
-        alert("Máximo de 8 produtos no carrossel")
-      }
-    } else {
-      setSelectedProducts(selectedProducts.filter((id) => id !== productId))
-    }
-  }
-
-  const handleDragStart = (index: number) => {
-    setDraggedIndex(index)
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-  }
-
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault()
-
-    if (draggedIndex === null) return
-
-    const newOrder = [...selectedProducts]
-    const draggedId = newOrder[draggedIndex]
-
-    newOrder.splice(draggedIndex, 1)
-    newOrder.splice(dropIndex, 0, draggedId)
-
-    setSelectedProducts(newOrder)
-    setDraggedIndex(null)
-  }
-
-  const removeFromCarousel = (productId: number) => {
-    setSelectedProducts(selectedProducts.filter((id) => id !== productId))
-  }
-
-  const saveCarouselConfig = async () => {
-    setCarouselLoading(true)
+  const getCarouselCount = () => {
     try {
-      localStorage.setItem("carousel-products", JSON.stringify(selectedProducts))
-      alert("Configuração do carrossel salva com sucesso!")
-      setShowCarouselManager(false)
-    } catch (error) {
-      console.error("Error saving carousel config:", error)
-      alert("Erro ao salvar configuração")
-    } finally {
-      setCarouselLoading(false)
+      const savedCarousel = localStorage.getItem("carousel-products")
+      return savedCarousel ? JSON.parse(savedCarousel).length : 5
+    } catch {
+      return 5
     }
   }
-
-  const getProductById = (id: number) => allProducts.find((p) => p.id === id)
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando produtos...</p>
+          <p className="text-gray-600">Carregando...</p>
         </div>
       </div>
     )
@@ -148,275 +83,285 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 pt-24">
       <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-dancing font-bold text-gray-800">Administração</h1>
-            <p className="text-gray-600">Gerencie os produtos do Atelier da Rubi</p>
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setShowCarouselManager(!showCarouselManager)}
-              variant="outline"
-              className="bg-transparent"
-            >
-              <Shuffle className="h-4 w-4 mr-2" />
-              {showCarouselManager ? "Ocultar" : "Carrossel"}
-            </Button>
-            <Button asChild variant="outline" className="bg-transparent">
-              <Link href="/admin/storage">
-                <ImageIcon className="h-4 w-4 mr-2" />
-                Imagens
-              </Link>
-            </Button>
-            <Button asChild className="bg-pink-500 hover:bg-pink-600">
-              <Link href="/admin/products/new">
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Produto
-              </Link>
-            </Button>
-          </div>
+        {/* Header */}
+        <div className="text-center mb-12">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+            <h1 className="text-4xl md:text-5xl font-dancing font-bold text-gray-800 mb-4">Painel Administrativo</h1>
+            <p className="text-gray-600 text-lg">Atelier da Rubi - Sistema de Gerenciamento</p>
+          </motion.div>
         </div>
 
-        {/* Gerenciador de Carrossel */}
-        {showCarouselManager && (
-          <Card className="mb-8">
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+          >
+            <Card className="text-center hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Package className="h-6 w-6 text-pink-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">{allProducts.length}</h3>
+                <p className="text-gray-600 text-sm">Total de Produtos</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <Card className="text-center hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Eye className="h-6 w-6 text-yellow-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">
+                  {allProducts.filter((p) => p.featured).length}
+                </h3>
+                <p className="text-gray-600 text-sm">Em Destaque</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+          >
+            <Card className="text-center hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Shuffle className="h-6 w-6 text-purple-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">{getCarouselCount()}</h3>
+                <p className="text-gray-600 text-sm">No Carrossel</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+          >
+            <Card className="text-center hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <BarChart3 className="h-6 w-6 text-blue-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">
+                  {new Set(allProducts.map((p) => p.category)).size}
+                </h3>
+                <p className="text-gray-600 text-sm">Categorias</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Main Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+          >
+            <Card className="hover:shadow-xl transition-all duration-300 group">
+              <CardHeader className="text-center pb-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-pink-400 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                  <Package className="h-8 w-8 text-white" />
+                </div>
+                <CardTitle className="text-xl">Gerenciar Produtos</CardTitle>
+                <p className="text-gray-600 text-sm">Criar, editar e organizar produtos do catálogo</p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button asChild className="w-full bg-pink-500 hover:bg-pink-600">
+                  <Link href="/admin/products/new">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Produto
+                  </Link>
+                </Button>
+                <div className="text-center text-sm text-gray-500">{allProducts.length} produtos cadastrados</div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+          >
+            <Card className="hover:shadow-xl transition-all duration-300 group">
+              <CardHeader className="text-center pb-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                  <Shuffle className="h-8 w-8 text-white" />
+                </div>
+                <CardTitle className="text-xl">Carrossel Principal</CardTitle>
+                <p className="text-gray-600 text-sm">Configure os produtos em destaque na página inicial</p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="w-full border-purple-300 text-purple-600 hover:bg-purple-50 bg-transparent"
+                >
+                  <Link href="/admin/carousel">
+                    <Shuffle className="h-4 w-4 mr-2" />
+                    Configurar Carrossel
+                  </Link>
+                </Button>
+                <div className="text-center text-sm text-gray-500">{getCarouselCount()} produtos selecionados</div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.7 }}
+          >
+            <Card className="hover:shadow-xl transition-all duration-300 group">
+              <CardHeader className="text-center pb-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                  <ImageIcon className="h-8 w-8 text-white" />
+                </div>
+                <CardTitle className="text-xl">Gerenciar Imagens</CardTitle>
+                <p className="text-gray-600 text-sm">Upload e organização de imagens do sistema</p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="w-full border-blue-300 text-blue-600 hover:bg-blue-50 bg-transparent"
+                >
+                  <Link href="/admin/storage">
+                    <ImageIcon className="h-4 w-4 mr-2" />
+                    Acessar Storage
+                  </Link>
+                </Button>
+                <div className="text-center text-sm text-gray-500">Sistema offline ativo</div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Recent Products Preview */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.8 }}
+        >
+          <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>Gerenciar Carrossel ({selectedProducts.length}/8)</CardTitle>
-                  <p className="text-sm text-gray-600">Selecione e ordene os produtos do carrossel</p>
+                  <CardTitle className="text-2xl">Produtos Recentes</CardTitle>
+                  <p className="text-gray-600">Últimos produtos do catálogo</p>
                 </div>
-                <Button
-                  onClick={saveCarouselConfig}
-                  disabled={carouselLoading}
-                  className="bg-pink-500 hover:bg-pink-600"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {carouselLoading ? "Salvando..." : "Salvar"}
+                <Button asChild variant="outline" className="bg-transparent">
+                  <Link href="/">
+                    <Eye className="h-4 w-4 mr-2" />
+                    Ver Site
+                  </Link>
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid lg:grid-cols-2 gap-6">
-                {/* Produtos Selecionados */}
-                <div>
-                  <h3 className="font-medium mb-4">Produtos no Carrossel</h3>
-                  {selectedProducts.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
-                      <p>Nenhum produto selecionado</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {selectedProducts.map((productId, index) => {
-                        const product = getProductById(productId)
-                        if (!product) return null
-
-                        return (
-                          <motion.div
-                            key={productId}
-                            draggable
-                            onDragStart={() => handleDragStart(index)}
-                            onDragOver={handleDragOver}
-                            onDrop={(e) => handleDrop(e, index)}
-                            className="flex items-center gap-3 p-3 bg-white rounded-lg shadow-sm border cursor-move group"
-                            whileHover={{ scale: 1.02 }}
-                          >
-                            <GripVertical className="h-4 w-4 text-gray-400" />
-                            <div className="w-6 h-6 bg-pink-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                              {index + 1}
-                            </div>
-                            <div className="w-12 h-12 rounded overflow-hidden bg-gray-100">
-                              <NextImage
-                                src={product.images[0] || "/placeholder.svg"}
-                                alt={product.name}
-                                width={48}
-                                height={48}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-medium text-sm truncate">{product.name}</h4>
-                              <p className="text-xs text-gray-500">{product.price}</p>
-                            </div>
-                            <Button variant="destructive" size="sm" onClick={() => removeFromCarousel(productId)}>
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </motion.div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Todos os Produtos */}
-                <div>
-                  <h3 className="font-medium mb-4">Todos os Produtos</h3>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {allProducts.map((product) => (
-                      <div
-                        key={product.id}
-                        className="flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
-                      >
-                        <Checkbox
-                          checked={selectedProducts.includes(product.id)}
-                          onCheckedChange={(checked) => handleProductToggle(product.id, checked as boolean)}
-                          disabled={!selectedProducts.includes(product.id) && selectedProducts.length >= 8}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {allProducts.slice(0, 4).map((product) => (
+                  <div key={product.id} className="group">
+                    <div className="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                      <div className="aspect-square relative">
+                        <NextImage
+                          src={product.images[0] || "/placeholder.svg"}
+                          alt={product.name}
+                          fill
+                          className="object-cover"
                         />
-                        <div className="w-10 h-10 rounded overflow-hidden bg-gray-200">
-                          <NextImage
-                            src={product.images[0] || "/placeholder.svg"}
-                            alt={product.name}
-                            width={40}
-                            height={40}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm truncate">{product.name}</h4>
-                          <p className="text-xs text-gray-500">{product.price}</p>
+                        {product.featured && (
+                          <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
+                            Destaque
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <h3 className="font-medium text-sm truncate mb-1">{product.name}</h3>
+                        <p className="text-lg font-bold text-yellow-600 mb-2">{product.price}</p>
+                        <div className="flex gap-1">
+                          <Button asChild variant="outline" size="sm" className="flex-1 text-xs bg-transparent">
+                            <Link href={`/catalogo/${product.id}`}>
+                              <Eye className="h-3 w-3 mr-1" />
+                              Ver
+                            </Link>
+                          </Button>
+                          <Button asChild variant="outline" size="sm" className="flex-1 text-xs bg-transparent">
+                            <Link href={`/admin/products/${product.id}/edit`}>
+                              <Edit className="h-3 w-3 mr-1" />
+                              Editar
+                            </Link>
+                          </Button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-pink-100 rounded-lg">
-                  <Settings className="h-6 w-6 text-pink-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Produtos</p>
-                  <p className="text-2xl font-bold text-gray-900">{allProducts.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <Eye className="h-6 w-6 text-yellow-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Em Destaque</p>
-                  <p className="text-2xl font-bold text-gray-900">{allProducts.filter((p) => p.featured).length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <ImageIcon className="h-6 w-6 text-blue-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Categorias</p>
-                  <p className="text-2xl font-bold text-gray-900">{new Set(allProducts.map((p) => p.category)).size}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Shuffle className="h-6 w-6 text-purple-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">No Carrossel</p>
-                  <p className="text-2xl font-bold text-gray-900">{selectedProducts.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {allProducts.map((product) => (
-            <motion.div
-              key={product.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="group"
-            >
-              <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="relative aspect-square">
-                  <NextImage
-                    src={product.images[0] || "/placeholder.svg"}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                  />
-                  {product.featured && (
-                    <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
-                      Destaque
                     </div>
-                  )}
-                  {selectedProducts.includes(product.id) && (
-                    <div className="absolute top-2 right-2 bg-purple-500 text-white text-xs px-2 py-1 rounded">
-                      Carrossel
-                    </div>
-                  )}
-                </div>
-
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg line-clamp-2">{product.name}</CardTitle>
-                  <p className="text-2xl font-bold text-yellow-600">{product.price}</p>
-                </CardHeader>
-
-                <CardContent className="pt-0">
-                  <p className="text-gray-600 text-sm line-clamp-2 mb-4">{product.description}</p>
-
-                  <div className="flex gap-2">
-                    <Button asChild variant="outline" size="sm" className="flex-1 bg-transparent">
-                      <Link href={`/catalogo/${product.id}`}>
-                        <Eye className="h-4 w-4 mr-1" />
-                        Ver
-                      </Link>
-                    </Button>
-
-                    <Button asChild variant="outline" size="sm" className="flex-1 bg-transparent">
-                      <Link href={`/admin/products/${product.id}/edit`}>
-                        <Edit className="h-4 w-4 mr-1" />
-                        Editar
-                      </Link>
-                    </Button>
-
-                    <Button variant="destructive" size="sm" onClick={() => handleDeleteProduct(product.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
+                ))}
+              </div>
 
-        {allProducts.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg mb-4">Nenhum produto cadastrado</p>
-            <Button asChild className="bg-pink-500 hover:bg-pink-600">
-              <Link href="/admin/products/new">
-                <Plus className="h-4 w-4 mr-2" />
-                Criar Primeiro Produto
-              </Link>
-            </Button>
+              {allProducts.length > 4 && (
+                <div className="text-center mt-6">
+                  <p className="text-gray-500 text-sm mb-4">Mostrando 4 de {allProducts.length} produtos</p>
+                </div>
+              )}
+
+              {allProducts.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 text-lg mb-4">Nenhum produto cadastrado</p>
+                  <Button asChild className="bg-pink-500 hover:bg-pink-600">
+                    <Link href="/admin/products/new">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Criar Primeiro Produto
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Quick Actions Footer */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.9 }}
+          className="mt-12 text-center"
+        >
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Acesso Rápido</h3>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Button asChild variant="outline" size="sm" className="bg-transparent">
+                <Link href="/">
+                  <Eye className="h-4 w-4 mr-2" />
+                  Ver Site
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="bg-transparent">
+                <Link href="/catalogo">
+                  <Package className="h-4 w-4 mr-2" />
+                  Catálogo
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm" className="bg-transparent">
+                <Link href="/admin/products/new">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Produto
+                </Link>
+              </Button>
+            </div>
           </div>
-        )}
+        </motion.div>
       </div>
     </div>
   )
