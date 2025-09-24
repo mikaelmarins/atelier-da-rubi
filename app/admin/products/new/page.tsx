@@ -15,6 +15,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import ImageUpload from "@/components/admin/image-upload"
 import type { CreateProductData } from "@/lib/product-service"
+import AuthGuard from "@/components/auth/auth-guard"
 
 const categories = [
   { value: "jogos-berco", label: "Jogos de Berço" },
@@ -29,7 +30,7 @@ const categories = [
 
 const tamanhos = ["RN", "P", "M", "G", "1 ano", "2 anos", "Berço Padrão", "Mini Berço", "Único"]
 
-export default function NewProductPage() {
+function NewProductPageContent() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [images, setImages] = useState<string[]>([])
@@ -63,20 +64,16 @@ export default function NewProductPage() {
     setLoading(true)
 
     try {
-      // Como as imagens já foram uploadadas pelo ImageUpload,
-      // vamos criar o produto com as URLs das imagens
       const productData = {
         ...formData,
         images,
       }
 
-      // Simular criação do produto (em um app real, isso seria uma API call)
       const newProduct = {
         id: Date.now(),
         ...productData,
       }
 
-      // Salvar no localStorage para demonstração
       const existingProducts = JSON.parse(localStorage.getItem("atelier-products") || "[]")
       existingProducts.push(newProduct)
       localStorage.setItem("atelier-products", JSON.stringify(existingProducts))
@@ -296,5 +293,13 @@ export default function NewProductPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function NewProductPage() {
+  return (
+    <AuthGuard>
+      <NewProductPageContent />
+    </AuthGuard>
   )
 }

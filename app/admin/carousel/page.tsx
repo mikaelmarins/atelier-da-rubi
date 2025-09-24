@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import AuthGuard from "@/components/auth/auth-guard"
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
@@ -13,7 +14,7 @@ import { products } from "@/data/products"
 import type { Product } from "@/data/products"
 import Image from "next/image"
 
-export default function CarouselManagementPage() {
+const CarouselManagementPageContent: React.FC = () => {
   const [selectedProducts, setSelectedProducts] = useState<number[]>([])
   const [availableProducts, setAvailableProducts] = useState<Product[]>([])
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
@@ -225,9 +226,7 @@ export default function CarouselManagementPage() {
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-sm font-bold text-yellow-600">{product.price}</span>
                         {product.featured && (
-                          <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
-                            Destaque
-                          </span>
+                          <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">Destaque</span>
                         )}
                       </div>
                     </div>
@@ -287,5 +286,13 @@ export default function CarouselManagementPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function CarouselManagementPage() {
+  return (
+    <AuthGuard>
+      <CarouselManagementPageContent />
+    </AuthGuard>
   )
 }

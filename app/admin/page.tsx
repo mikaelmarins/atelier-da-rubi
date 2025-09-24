@@ -2,17 +2,22 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Plus, Edit, Eye, ImageIcon, Shuffle, BarChart3, Package } from "lucide-react"
+import { Plus, Edit, Eye, ImageIcon, Shuffle, BarChart3, Package, LogOut, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Product } from "@/data/products"
 import { products } from "@/data/products"
 import NextImage from "next/image"
 import Link from "next/link"
+import AuthGuard from "@/components/auth/auth-guard"
+import { useAuth } from "@/hooks/use-auth"
+import { useRouter } from "next/navigation"
 
-export default function AdminPage() {
+function AdminPageContent() {
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const { user, logout } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
     loadProducts()
@@ -20,25 +25,21 @@ export default function AdminPage() {
 
   const loadProducts = async () => {
     try {
-      // Sempre inicializar com produtos padrão se não houver produtos salvos
       const savedProducts = localStorage.getItem("atelier-products")
       if (savedProducts) {
         const parsed = JSON.parse(savedProducts)
         if (parsed.length > 0) {
           setAllProducts(parsed)
         } else {
-          // Se array vazio, usar produtos padrão
           setAllProducts(products)
           localStorage.setItem("atelier-products", JSON.stringify(products))
         }
       } else {
-        // Se não existe no localStorage, usar produtos padrão
         setAllProducts(products)
         localStorage.setItem("atelier-products", JSON.stringify(products))
       }
     } catch (error) {
       console.error("Error loading products:", error)
-      // Em caso de erro, sempre usar produtos padrão
       setAllProducts(products)
       localStorage.setItem("atelier-products", JSON.stringify(products))
     } finally {
@@ -46,17 +47,10 @@ export default function AdminPage() {
     }
   }
 
-  const handleDeleteProduct = async (id: number) => {
-    if (!confirm("Tem certeza que deseja deletar este produto?")) return
-
-    try {
-      const updatedProducts = allProducts.filter((p) => p.id !== id)
-      setAllProducts(updatedProducts)
-      localStorage.setItem("atelier-products", JSON.stringify(updatedProducts))
-      alert("Produto deletado com sucesso!")
-    } catch (error) {
-      console.error("Error deleting product:", error)
-      alert("Erro ao deletar produto")
+  const handleLogout = () => {
+    if (confirm("Tem certeza que deseja sair?")) {
+      logout()
+      router.push("/admin/login")
     }
   }
 
@@ -83,12 +77,23 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 pt-24">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-12">
+        {/* Header com Logout */}
+        <div className="flex justify-between items-center mb-12">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <h1 className="text-4xl md:text-5xl font-dancing font-bold text-gray-800 mb-4">Painel Administrativo</h1>
-            <p className="text-gray-600 text-lg">Atelier da Rubi - Sistema de Gerenciamento</p>
+            <h1 className="text-4xl md:text-5xl font-dancing font-bold text-gray-800 mb-2">Painel Administrativo</h1>
+            <p className="text-gray-600 text-lg">Bem-vinda, {user?.name}!</p>
           </motion.div>
+
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:flex items-center gap-2 text-gray-600">
+              <User className="h-4 w-4" />
+              <span className="text-sm">{user?.email}</span>
+            </div>
+            <Button onClick={handleLogout} variant="outline" className="bg-transparent">
+              <LogOut className="h-4 w-4 mr-2" />
+              Sair
+            </Button>
+          </div>
         </div>
 
         {/* Quick Stats */}
@@ -364,5 +369,13 @@ export default function AdminPage() {
         </motion.div>
       </div>
     </div>
+  )
+}
+
+export default function AdminPage() {
+  return (
+    <AuthGuard>
+      <AdminPageContent />
+    </AuthGuard>
   )
 }

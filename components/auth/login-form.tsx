@@ -4,27 +4,44 @@ import type React from "react"
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { Eye, EyeOff, Lock, User, Heart } from "lucide-react"
+import { Eye, EyeOff, Lock, User, Heart, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { useAuth } from "@/hooks/use-auth"
+import { useRouter } from "next/navigation"
 
-interface LoginFormProps {
-  onLogin: (credentials: { email: string; password: string }) => void
-  loading?: boolean
-}
-
-export default function LoginForm({ onLogin, loading = false }: LoginFormProps) {
+export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { login } = useAuth()
+  const router = useRouter()
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onLogin(formData)
+    setLoading(true)
+    setError("")
+
+    try {
+      const result = await login(formData)
+
+      if (result.success) {
+        router.push("/admin")
+      } else {
+        setError(result.error || "Erro no login")
+      }
+    } catch (error) {
+      setError("Erro interno. Tente novamente.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleInputChange = (field: string, value: string) => {
@@ -32,6 +49,8 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
       ...prev,
       [field]: value,
     }))
+    // Limpar erro quando usuário começar a digitar
+    if (error) setError("")
   }
 
   return (
@@ -55,6 +74,16 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm"
+                >
+                  {error}
+                </motion.div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -67,6 +96,7 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
                     placeholder="seu@email.com"
                     className="pl-10"
                     required
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -83,11 +113,13 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
                     placeholder="••••••••"
                     className="pl-10 pr-10"
                     required
+                    disabled={loading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    disabled={loading}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -99,7 +131,14 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
                 disabled={loading}
                 className="w-full bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white"
               >
-                {loading ? "Entrando..." : "Entrar"}
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Entrando...
+                  </>
+                ) : (
+                  "Entrar"
+                )}
               </Button>
             </form>
 
@@ -109,14 +148,22 @@ export default function LoginForm({ onLogin, loading = false }: LoginFormProps) 
           </CardContent>
         </Card>
 
-        {/* Aviso de Sistema Desabilitado */}
+        {/* Informações de Login para Desenvolvimento */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
+          className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg"
         >
-          <p className="text-yellow-800 text-sm text-center">⚠️ Sistema de autenticação em desenvolvimento</p>
+          <p className="text-blue-800 text-sm text-center font-medium mb-2">🔐 Credenciais de Acesso</p>
+          <div className="text-blue-700 text-xs space-y-1">
+            <p>
+              <strong>Email:</strong> rubiananascimento1@gmail.com
+            </p>
+            <p>
+              <strong>Senha:</strong> Senha@123
+            </p>
+          </div>
         </motion.div>
       </motion.div>
     </div>

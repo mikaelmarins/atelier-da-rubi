@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import AuthGuard from "@/components/auth/auth-guard"
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
@@ -21,7 +22,7 @@ interface StorageFile {
   contentType: string
 }
 
-export default function StoragePage() {
+const StoragePageContent = () => {
   const [files, setFiles] = useState<StorageFile[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -313,5 +314,13 @@ export default function StoragePage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function StoragePage() {
+  return (
+    <AuthGuard>
+      <StoragePageContent />
+    </AuthGuard>
   )
 }

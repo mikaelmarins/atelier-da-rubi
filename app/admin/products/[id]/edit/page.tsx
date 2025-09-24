@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import AuthGuard from "@/components/auth/auth-guard"
 
 import { useState, useEffect } from "react"
 import { ArrowLeft, Save, Loader2, GripVertical, X } from "lucide-react"
@@ -35,7 +36,7 @@ type Props = {
   params: { id: string }
 }
 
-export default function EditProductPage({ params }: Props) {
+function EditProductPageContent({ params }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [product, setProduct] = useState<Product | null>(null)
@@ -408,5 +409,13 @@ export default function EditProductPage({ params }: Props) {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function EditProductPage({ params }: Props) {
+  return (
+    <AuthGuard>
+      <EditProductPageContent params={params} />
+    </AuthGuard>
   )
 }
