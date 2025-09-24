@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Plus, Edit, Trash2, Eye, Settings, Images, Shuffle } from "lucide-react"
+import { Plus, Edit, Trash2, Eye, Settings, ImageIcon, Shuffle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Product } from "@/data/products"
 import { products } from "@/data/products"
-import Image from "next/image"
+import NextImage from "next/image"
 import Link from "next/link"
 
 export default function AdminPage() {
@@ -79,7 +79,7 @@ export default function AdminPage() {
             </Button>
             <Button asChild variant="outline" className="bg-transparent">
               <Link href="/admin/storage">
-                <Images className="h-4 w-4 mr-2" />
+                <ImageIcon className="h-4 w-4 mr-2" />
                 Imagens
               </Link>
             </Button>
@@ -126,7 +126,7 @@ export default function AdminPage() {
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className="p-2 bg-blue-100 rounded-lg">
-                  <Images className="h-6 w-6 text-blue-600" />
+                  <ImageIcon className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Categorias</p>
@@ -164,7 +164,7 @@ export default function AdminPage() {
             >
               <Card className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="relative aspect-square">
-                  <Image
+                  <NextImage
                     src={product.images[0] || "/placeholder.svg"}
                     alt={product.name}
                     fill
