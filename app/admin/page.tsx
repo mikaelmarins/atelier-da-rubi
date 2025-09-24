@@ -1,10 +1,13 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Plus, Edit, Trash2, Eye, Settings, ImageIcon, Shuffle } from "lucide-react"
+import { Plus, Edit, Trash2, Eye, Settings, ImageIcon, Shuffle, GripVertical, X, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import type { Product } from "@/data/products"
 import { products } from "@/data/products"
 import NextImage from "next/image"
@@ -13,26 +16,51 @@ import Link from "next/link"
 export default function AdminPage() {
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [showCarouselManager, setShowCarouselManager] = useState(false)
+  const [selectedProducts, setSelectedProducts] = useState<number[]>([])
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [carouselLoading, setCarouselLoading] = useState(false)
 
   useEffect(() => {
     loadProducts()
+    loadCarouselConfig()
   }, [])
 
   const loadProducts = async () => {
     try {
-      // Carregar produtos do localStorage ou usar produtos padrão
+      // Sempre inicializar com produtos padrão se não houver produtos salvos
       const savedProducts = localStorage.getItem("atelier-products")
       if (savedProducts) {
-        setAllProducts(JSON.parse(savedProducts))
+        const parsed = JSON.parse(savedProducts)
+        if (parsed.length > 0) {
+          setAllProducts(parsed)
+        } else {
+          // Se array vazio, usar produtos padrão
+          setAllProducts(products)
+          localStorage.setItem("atelier-products", JSON.stringify(products))
+        }
       } else {
+        // Se não existe no localStorage, usar produtos padrão
         setAllProducts(products)
         localStorage.setItem("atelier-products", JSON.stringify(products))
       }
     } catch (error) {
       console.error("Error loading products:", error)
+      // Em caso de erro, sempre usar produtos padrão
       setAllProducts(products)
+      localStorage.setItem("atelier-products", JSON.stringify(products))
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadCarouselConfig = () => {
+    const savedCarousel = localStorage.getItem("carousel-products")
+    if (savedCarousel) {
+      setSelectedProducts(JSON.parse(savedCarousel))
+    } else {
+      // IDs padrão do carrossel
+      setSelectedProducts([1, 2, 3, 4, 5])
     }
   }
 
@@ -49,6 +77,62 @@ export default function AdminPage() {
       alert("Erro ao deletar produto")
     }
   }
+
+  // Funções do Carrossel
+  const handleProductToggle = (productId: number, checked: boolean) => {
+    if (checked) {
+      if (selectedProducts.length < 8) {
+        setSelectedProducts([...selectedProducts, productId])
+      } else {
+        alert("Máximo de 8 produtos no carrossel")
+      }
+    } else {
+      setSelectedProducts(selectedProducts.filter((id) => id !== productId))
+    }
+  }
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault()
+
+    if (draggedIndex === null) return
+
+    const newOrder = [...selectedProducts]
+    const draggedId = newOrder[draggedIndex]
+
+    newOrder.splice(draggedIndex, 1)
+    newOrder.splice(dropIndex, 0, draggedId)
+
+    setSelectedProducts(newOrder)
+    setDraggedIndex(null)
+  }
+
+  const removeFromCarousel = (productId: number) => {
+    setSelectedProducts(selectedProducts.filter((id) => id !== productId))
+  }
+
+  const saveCarouselConfig = async () => {
+    setCarouselLoading(true)
+    try {
+      localStorage.setItem("carousel-products", JSON.stringify(selectedProducts))
+      alert("Configuração do carrossel salva com sucesso!")
+      setShowCarouselManager(false)
+    } catch (error) {
+      console.error("Error saving carousel config:", error)
+      alert("Erro ao salvar configuração")
+    } finally {
+      setCarouselLoading(false)
+    }
+  }
+
+  const getProductById = (id: number) => allProducts.find((p) => p.id === id)
 
   if (loading) {
     return (
@@ -71,11 +155,13 @@ export default function AdminPage() {
           </div>
 
           <div className="flex gap-2">
-            <Button asChild variant="outline" className="bg-transparent">
-              <Link href="/admin/carousel">
-                <Shuffle className="h-4 w-4 mr-2" />
-                Carrossel
-              </Link>
+            <Button
+              onClick={() => setShowCarouselManager(!showCarouselManager)}
+              variant="outline"
+              className="bg-transparent"
+            >
+              <Shuffle className="h-4 w-4 mr-2" />
+              {showCarouselManager ? "Ocultar" : "Carrossel"}
             </Button>
             <Button asChild variant="outline" className="bg-transparent">
               <Link href="/admin/storage">
@@ -91,6 +177,113 @@ export default function AdminPage() {
             </Button>
           </div>
         </div>
+
+        {/* Gerenciador de Carrossel */}
+        {showCarouselManager && (
+          <Card className="mb-8">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Gerenciar Carrossel ({selectedProducts.length}/8)</CardTitle>
+                  <p className="text-sm text-gray-600">Selecione e ordene os produtos do carrossel</p>
+                </div>
+                <Button
+                  onClick={saveCarouselConfig}
+                  disabled={carouselLoading}
+                  className="bg-pink-500 hover:bg-pink-600"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {carouselLoading ? "Salvando..." : "Salvar"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid lg:grid-cols-2 gap-6">
+                {/* Produtos Selecionados */}
+                <div>
+                  <h3 className="font-medium mb-4">Produtos no Carrossel</h3>
+                  {selectedProducts.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
+                      <p>Nenhum produto selecionado</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {selectedProducts.map((productId, index) => {
+                        const product = getProductById(productId)
+                        if (!product) return null
+
+                        return (
+                          <motion.div
+                            key={productId}
+                            draggable
+                            onDragStart={() => handleDragStart(index)}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, index)}
+                            className="flex items-center gap-3 p-3 bg-white rounded-lg shadow-sm border cursor-move group"
+                            whileHover={{ scale: 1.02 }}
+                          >
+                            <GripVertical className="h-4 w-4 text-gray-400" />
+                            <div className="w-6 h-6 bg-pink-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                              {index + 1}
+                            </div>
+                            <div className="w-12 h-12 rounded overflow-hidden bg-gray-100">
+                              <NextImage
+                                src={product.images[0] || "/placeholder.svg"}
+                                alt={product.name}
+                                width={48}
+                                height={48}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium text-sm truncate">{product.name}</h4>
+                              <p className="text-xs text-gray-500">{product.price}</p>
+                            </div>
+                            <Button variant="destructive" size="sm" onClick={() => removeFromCarousel(productId)}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </motion.div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Todos os Produtos */}
+                <div>
+                  <h3 className="font-medium mb-4">Todos os Produtos</h3>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {allProducts.map((product) => (
+                      <div
+                        key={product.id}
+                        className="flex items-center gap-3 p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+                      >
+                        <Checkbox
+                          checked={selectedProducts.includes(product.id)}
+                          onCheckedChange={(checked) => handleProductToggle(product.id, checked as boolean)}
+                          disabled={!selectedProducts.includes(product.id) && selectedProducts.length >= 8}
+                        />
+                        <div className="w-10 h-10 rounded overflow-hidden bg-gray-200">
+                          <NextImage
+                            src={product.images[0] || "/placeholder.svg"}
+                            alt={product.name}
+                            width={40}
+                            height={40}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm truncate">{product.name}</h4>
+                          <p className="text-xs text-gray-500">{product.price}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -144,9 +337,7 @@ export default function AdminPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">No Carrossel</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {JSON.parse(localStorage.getItem("carousel-products") || "[]").length}
-                  </p>
+                  <p className="text-2xl font-bold text-gray-900">{selectedProducts.length}</p>
                 </div>
               </div>
             </CardContent>
@@ -173,6 +364,11 @@ export default function AdminPage() {
                   {product.featured && (
                     <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
                       Destaque
+                    </div>
+                  )}
+                  {selectedProducts.includes(product.id) && (
+                    <div className="absolute top-2 right-2 bg-purple-500 text-white text-xs px-2 py-1 rounded">
+                      Carrossel
                     </div>
                   )}
                 </div>

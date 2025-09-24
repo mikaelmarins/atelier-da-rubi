@@ -6,16 +6,27 @@ import { ChevronLeft, ChevronRight, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import Image from "next/image"
-import { getProductById } from "@/data/products"
+import { products } from "@/data/products"
 
 export default function FeaturedCarousel() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isHovered, setIsHovered] = useState(false)
   const [itemsPerView, setItemsPerView] = useState(3)
   const [featuredProductIds, setFeaturedProductIds] = useState<number[]>([])
+  const [allProducts, setAllProducts] = useState(products)
 
-  // Carregar configuração do carrossel
+  // Carregar produtos e configuração do carrossel
   useEffect(() => {
+    // Carregar produtos do localStorage ou usar padrão
+    const savedProducts = localStorage.getItem("atelier-products")
+    if (savedProducts) {
+      const parsed = JSON.parse(savedProducts)
+      if (parsed.length > 0) {
+        setAllProducts(parsed)
+      }
+    }
+
+    // Carregar configuração do carrossel
     const savedCarousel = localStorage.getItem("carousel-products")
     if (savedCarousel) {
       setFeaturedProductIds(JSON.parse(savedCarousel))
@@ -26,7 +37,7 @@ export default function FeaturedCarousel() {
   }, [])
 
   // Buscar produtos específicos pelos IDs configurados
-  const featuredItems = featuredProductIds.map((id) => getProductById(id)).filter(Boolean)
+  const featuredItems = featuredProductIds.map((id) => allProducts.find((product) => product.id === id)).filter(Boolean)
 
   // Responsive items per view
   useEffect(() => {

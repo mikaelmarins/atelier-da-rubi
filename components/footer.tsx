@@ -1,4 +1,5 @@
-import { Heart, Instagram, Phone, MapPin, Truck } from "lucide-react"
+import { Heart, Instagram, Phone, MapPin, Truck, Settings } from "lucide-react"
+import Link from "next/link"
 
 export default function Footer() {
   return (
@@ -62,6 +63,13 @@ export default function Footer() {
                 >
                   <Phone className="h-6 w-6" />
                 </a>
+                <Link
+                  href="/admin"
+                  className="text-gray-300 hover:text-purple-400 transition-colors"
+                  aria-label="Área Administrativa"
+                >
+                  <Settings className="h-6 w-6" />
+                </Link>
               </div>
               <div className="text-center">
                 <a
@@ -106,6 +114,13 @@ export default function Footer() {
               >
                 <Phone className="h-6 w-6" />
               </a>
+              <Link
+                href="/admin"
+                className="text-gray-300 hover:text-purple-400 transition-colors"
+                aria-label="Área Administrativa"
+              >
+                <Settings className="h-6 w-6" />
+              </Link>
             </div>
           </div>
 
@@ -139,6 +154,12 @@ export default function Footer() {
                   @atelierdarubi
                 </a>
               </div>
+              <div className="flex items-center space-x-3">
+                <Settings className="h-5 w-5 text-purple-400 flex-shrink-0" />
+                <Link href="/admin" className="text-gray-300 hover:text-purple-400 transition-colors">
+                  Área Admin
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -146,7 +167,7 @@ export default function Footer() {
         {/* Linha divisória e copyright */}
         <div className="border-t border-gray-700 mt-8 sm:mt-10 pt-6 sm:pt-8 text-center space-y-2">
           <p className="text-gray-300 text-xs sm:text-sm">
-            © 2024 Atelier da Rubi. Todos os direitos reservados. Feito com{" "}
+            © 2025 Atelier da Rubi. Todos os direitos reservados. Feito com{" "}
             <Heart className="h-4 w-4 inline text-pink-400 mx-1" /> por Rubiana Lima.
           </p>
           <p className="text-gray-400 text-xs">
