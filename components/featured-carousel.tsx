@@ -8,16 +8,25 @@ import Link from "next/link"
 import Image from "next/image"
 import { getProductById } from "@/data/products"
 
-// IDs específicos dos produtos que queremos exibir no carrossel
-const FEATURED_PRODUCT_IDS = [1, 2, 3, 4, 5, 6, 7, 8]
-
 export default function FeaturedCarousel() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isHovered, setIsHovered] = useState(false)
   const [itemsPerView, setItemsPerView] = useState(3)
+  const [featuredProductIds, setFeaturedProductIds] = useState<number[]>([])
 
-  // Buscar produtos específicos pelos IDs
-  const featuredItems = FEATURED_PRODUCT_IDS.map((id) => getProductById(id)).filter(Boolean)
+  // Carregar configuração do carrossel
+  useEffect(() => {
+    const savedCarousel = localStorage.getItem("carousel-products")
+    if (savedCarousel) {
+      setFeaturedProductIds(JSON.parse(savedCarousel))
+    } else {
+      // IDs padrão do carrossel
+      setFeaturedProductIds([1, 2, 3, 4, 5])
+    }
+  }, [])
+
+  // Buscar produtos específicos pelos IDs configurados
+  const featuredItems = featuredProductIds.map((id) => getProductById(id)).filter(Boolean)
 
   // Responsive items per view
   useEffect(() => {

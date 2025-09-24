@@ -1,4 +1,11 @@
-import { put, del, list } from "@vercel/blob"
+// Simulação do Vercel Blob para desenvolvimento
+interface MockBlob {
+  url: string
+  pathname: string
+  size: number
+  uploadedAt: string
+  contentType: string
+}
 
 export interface UploadResult {
   url: string
@@ -8,20 +15,49 @@ export interface UploadResult {
 }
 
 export class StorageService {
+  private static mockStorage: MockBlob[] = []
+  private static isProduction = process.env.NODE_ENV === "production" && process.env.BLOB_READ_WRITE_TOKEN
+
   static async uploadImage(file: File, folder = "products"): Promise<UploadResult> {
     try {
-      const filename = `${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`
+      if (this.isProduction) {
+        // Usar Vercel Blob em produção
+        const { put } = await import("@vercel/blob")
+        const filename = `${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`
 
-      const blob = await put(filename, file, {
-        access: "public",
-        contentType: file.type,
-      })
+        const blob = await put(filename, file, {
+          access: "public",
+          contentType: file.type,
+        })
 
-      return {
-        url: blob.url,
-        pathname: blob.pathname,
-        contentType: blob.contentType || file.type,
-        contentDisposition: blob.contentDisposition || "",
+        return {
+          url: blob.url,
+          pathname: blob.pathname,
+          contentType: blob.contentType || file.type,
+          contentDisposition: blob.contentDisposition || "",
+        }
+      } else {
+        // Simulação para desenvolvimento
+        const filename = `${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`
+        const mockUrl = `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(file.name)}`
+
+        const mockBlob: MockBlob = {
+          url: mockUrl,
+          pathname: filename,
+          size: file.size,
+          uploadedAt: new Date().toISOString(),
+          contentType: file.type,
+        }
+
+        this.mockStorage.push(mockBlob)
+        this.saveMockStorage()
+
+        return {
+          url: mockUrl,
+          pathname: filename,
+          contentType: file.type,
+          contentDisposition: "",
+        }
       }
     } catch (error) {
       console.error("Error uploading image:", error)
@@ -41,7 +77,14 @@ export class StorageService {
 
   static async deleteImage(pathname: string): Promise<void> {
     try {
-      await del(pathname)
+      if (this.isProduction) {
+        const { del } = await import("@vercel/blob")
+        await del(pathname)
+      } else {
+        // Remover do mock storage
+        this.mockStorage = this.mockStorage.filter((blob) => blob.pathname !== pathname)
+        this.saveMockStorage()
+      }
     } catch (error) {
       console.error("Error deleting image:", error)
       throw new Error("Failed to delete image")
@@ -58,13 +101,26 @@ export class StorageService {
     }
   }
 
-  static async listImages(folder = "products"): Promise<any[]> {
+  static async listImages(folder = "products"): Promise<MockBlob[]> {
     try {
-      const { blobs } = await list({
-        prefix: folder,
-        limit: 1000,
-      })
-      return blobs
+      if (this.isProduction) {
+        const { list } = await import("@vercel/blob")
+        const { blobs } = await list({
+          prefix: folder,
+          limit: 1000,
+        })
+        return blobs.map((blob) => ({
+          url: blob.url,
+          pathname: blob.pathname,
+          size: blob.size,
+          uploadedAt: blob.uploadedAt,
+          contentType: blob.contentType || "image/jpeg",
+        }))
+      } else {
+        // Carregar do mock storage
+        this.loadMockStorage()
+        return this.mockStorage.filter((blob) => blob.pathname.startsWith(folder))
+      }
     } catch (error) {
       console.error("Error listing images:", error)
       throw new Error("Failed to list images")
@@ -72,7 +128,10 @@ export class StorageService {
   }
 
   static getImageUrl(pathname: string): string {
-    return `https://blob.vercel-storage.com/${pathname}`
+    if (this.isProduction) {
+      return `https://blob.vercel-storage.com/${pathname}`
+    }
+    return `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(pathname)}`
   }
 
   static validateImageFile(file: File): { valid: boolean; error?: string } {
@@ -144,5 +203,20 @@ export class StorageService {
 
       img.src = URL.createObjectURL(file)
     })
+  }
+
+  private static saveMockStorage(): void {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mock-storage", JSON.stringify(this.mockStorage))
+    }
+  }
+
+  private static loadMockStorage(): void {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("mock-storage")
+      if (stored) {
+        this.mockStorage = JSON.parse(stored)
+      }
+    }
   }
 }
