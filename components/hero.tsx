@@ -5,8 +5,29 @@ import { Sparkles } from "lucide-react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { Heart } from "lucide-react"
+import { useState, useEffect } from "react"
+
+interface HeartPosition {
+  x: number
+  y: number
+  delay: number
+}
 
 export default function Hero() {
+  const [heartPositions, setHeartPositions] = useState<HeartPosition[]>([])
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    // Só gerar posições aleatórias no cliente
+    const positions = Array.from({ length: 8 }, (_, i) => ({
+      x: Math.random() * window.innerWidth,
+      y: window.innerHeight + 50,
+      delay: i * 0.5,
+    }))
+    setHeartPositions(positions)
+    setMounted(true)
+  }, [])
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Animated Background Elements */}
@@ -49,35 +70,37 @@ export default function Hero() {
         />
       </div>
 
-      {/* Floating Hearts Effect */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {[...Array(8)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute"
-            initial={{
-              x: Math.random() * (typeof window !== "undefined" ? window.innerWidth : 1200),
-              y: typeof window !== "undefined" ? window.innerHeight + 50 : 800,
-              opacity: 0,
-              scale: 0,
-            }}
-            animate={{
-              y: -100,
-              opacity: [0, 1, 0],
-              scale: [0, 1, 0],
-              rotate: [0, 360],
-            }}
-            transition={{
-              duration: 4 + Math.random() * 2,
-              delay: i * 0.5,
-              repeat: Number.POSITIVE_INFINITY,
-              repeatDelay: 3,
-            }}
-          >
-            <Heart className="h-6 w-6 text-pink-300 fill-current" />
-          </motion.div>
-        ))}
-      </div>
+      {/* Floating Hearts Effect - Only render on client */}
+      {mounted && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {heartPositions.map((position, i) => (
+            <motion.div
+              key={i}
+              className="absolute"
+              initial={{
+                x: position.x,
+                y: position.y,
+                opacity: 0,
+                scale: 0,
+              }}
+              animate={{
+                y: -100,
+                opacity: [0, 1, 0],
+                scale: [0, 1, 0],
+                rotate: [0, 360],
+              }}
+              transition={{
+                duration: 4 + Math.random() * 2,
+                delay: position.delay,
+                repeat: Number.POSITIVE_INFINITY,
+                repeatDelay: 3,
+              }}
+            >
+              <Heart className="h-6 w-6 text-pink-300 fill-current" />
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       <div className="container mx-auto px-4 text-center relative z-10">
         <motion.div
