@@ -105,14 +105,14 @@ export default function FeaturedCarousel() {
         </motion.div>
 
         <div
-          className="relative max-w-7xl mx-auto"
+          className="relative max-w-5xl mx-auto" // Era max-w-7xl
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
           {/* Enhanced Desktop Carousel */}
           <div className="hidden md:block overflow-hidden">
             <motion.div
-              className="flex gap-6"
+              className="flex gap-4" // Era gap-6
               animate={{
                 x: `${-currentIndex * (100 / itemsPerView)}%`,
               }}
@@ -163,7 +163,9 @@ export default function FeaturedCarousel() {
                         </div>
                       )}
                     </div>
-                    <div className="p-6">
+                    <div className="p-4">
+                      {" "}
+                      // Era p-6
                       <h3 className="font-semibold text-lg mb-2 text-gray-800 line-clamp-2 group-hover:text-pink-600 transition-colors">
                         {item.name}
                       </h3>
