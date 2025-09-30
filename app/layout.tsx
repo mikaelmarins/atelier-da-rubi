@@ -22,14 +22,28 @@ const dancing = Dancing_Script({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://atelierdarubi.com.br"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://atelierdarubi.com.br"),
   title: {
-    default: "Atelier da Rubi - Bordados Infantis Delicados",
+    default: "Atelier da Rubi - Bordados Infantis Delicados | Arraial do Cabo",
     template: "%s | Atelier da Rubi",
   },
-  description: "Bordados infantis delicados em Arraial do Cabo e Região dos Lagos",
-  keywords: ["bordado infantil", "Arraial do Cabo", "Região dos Lagos", "bordados personalizados"],
-  authors: [{ name: "Rubiana Lima" }],
+  description:
+    "Bordados infantis únicos e delicados criados com amor em Arraial do Cabo. Jogos de berço, toalhas RN, kits gestante. Atendemos Região dos Lagos e todo Brasil.",
+  keywords: [
+    "bordado infantil",
+    "Arraial do Cabo",
+    "Região dos Lagos",
+    "Cabo Frio",
+    "Búzios",
+    "bordados personalizados",
+    "roupas bebê",
+    "jogo de berço",
+    "toalha recém nascido",
+    "kit gestante",
+    "Rubiana Lima",
+    "atelier bordado",
+  ],
+  authors: [{ name: "Rubiana Lima", url: "https://instagram.com/atelierdarubi" }],
   creator: "Atelier da Rubi",
   publisher: "Atelier da Rubi",
   formatDetection: {
@@ -43,6 +57,43 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   manifest: "/site.webmanifest",
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    url: process.env.NEXT_PUBLIC_SITE_URL || "https://atelierdarubi.com.br",
+    siteName: "Atelier da Rubi",
+    title: "Atelier da Rubi - Bordados Infantis Delicados",
+    description:
+      "Bordados infantis únicos criados com amor em Arraial do Cabo. Atendemos toda a Região dos Lagos e enviamos para todo o Brasil.",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Atelier da Rubi - Bordados Infantis",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Atelier da Rubi - Bordados Infantis Delicados",
+    description: "Bordados infantis únicos criados com amor em Arraial do Cabo",
+    images: ["/og-image.jpg"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  verification: {
+    google: "ADICIONAR_CODIGO_GOOGLE_SEARCH_CONSOLE",
+  },
     generator: 'v0.app'
 }
 
@@ -58,6 +109,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
         <link rel="dns-prefetch" href="https://www.facebook.com" />
+        <link rel="canonical" href={process.env.NEXT_PUBLIC_SITE_URL} />
       </head>
       <body className={`${inter.variable} ${dancing.variable} font-sans antialiased`}>
         <Suspense fallback={null}>

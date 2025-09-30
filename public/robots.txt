@@ -1,0 +1,19 @@
+# Robots.txt para Atelier da Rubi
+
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+# Sitemaps
+Sitemap: https://atelierdarubi.com.br/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 10
+
+# Specific bots
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
