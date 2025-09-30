@@ -7,15 +7,42 @@ export interface UploadResult {
   contentDisposition: string
 }
 
+export interface StoredImage {
+  url: string
+  pathname: string
+  size: number
+  uploadedAt: string
+  contentType: string
+}
+
 export class StorageService {
+  // Verificar se o Blob está configurado
+  static isBlobConfigured(): boolean {
+    return typeof process !== "undefined" && !!process.env.BLOB_READ_WRITE_TOKEN
+  }
+
+  // Upload para Vercel Blob ou fallback para base64
   static async uploadImage(file: File, folder = "products"): Promise<UploadResult> {
     try {
-      const filename = `${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`
+      // Validar arquivo primeiro
+      const validation = this.validateImageFile(file)
+      if (!validation.valid) {
+        throw new Error(validation.error)
+      }
+
+      // Verificar se Blob está configurado
+      if (!this.isBlobConfigured()) {
+        console.warn("Vercel Blob not configured, using localStorage fallback")
+        return await this.uploadToLocalStorage(file, folder)
+      }
 
       // Upload real para Vercel Blob
+      const filename = `${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`
+
       const blob = await put(filename, file, {
         access: "public",
         contentType: file.type,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
       })
 
       return {
@@ -25,9 +52,50 @@ export class StorageService {
         contentDisposition: `inline; filename="${file.name}"`,
       }
     } catch (error) {
-      console.error("Error uploading image:", error)
-      throw new Error("Failed to upload image")
+      console.error("Error uploading to Blob, falling back to localStorage:", error)
+      return await this.uploadToLocalStorage(file, folder)
     }
+  }
+
+  // Fallback: Upload para localStorage como base64
+  private static async uploadToLocalStorage(file: File, folder = "products"): Promise<UploadResult> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+
+      reader.onload = (e) => {
+        try {
+          const base64 = e.target?.result as string
+          const pathname = `${folder}/${Date.now()}-${file.name}`
+
+          // Salvar metadados no localStorage
+          const storageKey = "atelier-storage-files"
+          const existingFiles = JSON.parse(localStorage.getItem(storageKey) || "[]")
+
+          const fileData: StoredImage = {
+            url: base64,
+            pathname,
+            size: file.size,
+            uploadedAt: new Date().toISOString(),
+            contentType: file.type,
+          }
+
+          existingFiles.push(fileData)
+          localStorage.setItem(storageKey, JSON.stringify(existingFiles))
+
+          resolve({
+            url: base64,
+            pathname,
+            contentType: file.type,
+            contentDisposition: `inline; filename="${file.name}"`,
+          })
+        } catch (error) {
+          reject(error)
+        }
+      }
+
+      reader.onerror = () => reject(new Error("Failed to read file"))
+      reader.readAsDataURL(file)
+    })
   }
 
   static async uploadMultipleImages(files: File[], folder = "products"): Promise<UploadResult[]> {
@@ -42,45 +110,66 @@ export class StorageService {
 
   static async deleteImage(pathname: string): Promise<void> {
     try {
-      await del(pathname)
+      // Se for base64 (localStorage), remover do storage
+      if (pathname.startsWith("products/") && !pathname.startsWith("http")) {
+        const storageKey = "atelier-storage-files"
+        const existingFiles = JSON.parse(localStorage.getItem(storageKey) || "[]")
+        const filtered = existingFiles.filter((f: StoredImage) => f.pathname !== pathname)
+        localStorage.setItem(storageKey, JSON.stringify(filtered))
+        return
+      }
+
+      // Se for Vercel Blob
+      if (this.isBlobConfigured()) {
+        await del(pathname, { token: process.env.BLOB_READ_WRITE_TOKEN })
+      }
     } catch (error) {
       console.error("Error deleting image:", error)
-      throw new Error("Failed to delete image")
+      // Não lançar erro, continuar
     }
   }
 
   static async deleteMultipleImages(pathnames: string[]): Promise<void> {
     try {
-      const deletePromises = pathnames.map((pathname) => del(pathname))
+      const deletePromises = pathnames.map((pathname) => this.deleteImage(pathname))
       await Promise.all(deletePromises)
     } catch (error) {
       console.error("Error deleting multiple images:", error)
-      throw new Error("Failed to delete images")
     }
   }
 
-  static async listImages(folder = "products") {
+  static async listImages(folder = "products"): Promise<StoredImage[]> {
     try {
-      const { blobs } = await list({
-        prefix: folder,
-      })
+      // Tentar listar do Vercel Blob
+      if (this.isBlobConfigured()) {
+        const { blobs } = await list({
+          prefix: folder,
+          token: process.env.BLOB_READ_WRITE_TOKEN,
+        })
 
-      return blobs.map((blob) => ({
-        url: blob.url,
-        pathname: blob.pathname,
-        size: blob.size,
-        uploadedAt: blob.uploadedAt,
-        contentType: blob.contentType || "image/jpeg",
-      }))
+        return blobs.map((blob) => ({
+          url: blob.url,
+          pathname: blob.pathname,
+          size: blob.size,
+          uploadedAt: blob.uploadedAt,
+          contentType: blob.contentType || "image/jpeg",
+        }))
+      }
+
+      // Fallback: listar do localStorage
+      const storageKey = "atelier-storage-files"
+      const existingFiles = JSON.parse(localStorage.getItem(storageKey) || "[]")
+      return existingFiles.filter((f: StoredImage) => f.pathname.startsWith(folder))
     } catch (error) {
       console.error("Error listing images:", error)
-      return []
+      // Fallback para localStorage
+      const storageKey = "atelier-storage-files"
+      const existingFiles = JSON.parse(localStorage.getItem(storageKey) || "[]")
+      return existingFiles.filter((f: StoredImage) => f.pathname.startsWith(folder))
     }
   }
 
   static getImageUrl(pathname: string): string {
-    // Em produção com Blob, a URL já está completa
-    // Este método é mantido por compatibilidade
     return pathname
   }
 
@@ -157,7 +246,6 @@ export class StorageService {
     })
   }
 
-  // Método para obter estatísticas
   static async getStorageStats() {
     try {
       const images = await this.listImages()
@@ -166,6 +254,7 @@ export class StorageService {
         totalFiles: images.length,
         totalSize: images.reduce((acc, file) => acc + file.size, 0),
         byType: {} as Record<string, number>,
+        usingBlob: this.isBlobConfigured(),
       }
 
       images.forEach((file) => {
@@ -180,7 +269,14 @@ export class StorageService {
         totalFiles: 0,
         totalSize: 0,
         byType: {},
+        usingBlob: this.isBlobConfigured(),
       }
+    }
+  }
+
+  static clearLocalStorage(): void {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("atelier-storage-files")
     }
   }
 }

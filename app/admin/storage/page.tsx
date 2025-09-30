@@ -5,7 +5,7 @@ import AuthGuard from "@/components/auth/auth-guard"
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Upload, Trash2, Eye, Search, Filter } from "lucide-react"
+import { Upload, Trash2, Eye, Search, Filter, Wifi, WifiOff, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,11 +28,13 @@ const StoragePageContent = () => {
   const [uploading, setUploading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState("all")
-  const [stats, setStats] = useState({ totalFiles: 0, totalSize: 0, byType: {} })
+  const [stats, setStats] = useState<any>({ totalFiles: 0, totalSize: 0, byType: {}, usingBlob: false })
+  const [blobConfigured, setBlobConfigured] = useState(false)
 
   useEffect(() => {
     loadFiles()
     loadStats()
+    setBlobConfigured(StorageService.isBlobConfigured())
   }, [])
 
   const loadFiles = async () => {
@@ -64,7 +66,6 @@ const StoragePageContent = () => {
     try {
       const fileArray = Array.from(selectedFiles)
 
-      // Validar arquivos
       for (const file of fileArray) {
         const validation = StorageService.validateImageFile(file)
         if (!validation.valid) {
@@ -74,7 +75,6 @@ const StoragePageContent = () => {
         }
       }
 
-      // Comprimir e fazer upload
       const compressedFiles = await Promise.all(fileArray.map((file) => StorageService.compressImage(file, 0.85)))
 
       await StorageService.uploadMultipleImages(compressedFiles)
@@ -82,11 +82,10 @@ const StoragePageContent = () => {
       await loadStats()
       alert("Imagens enviadas com sucesso!")
 
-      // Limpar input
       e.target.value = ""
     } catch (error) {
       console.error("Error uploading files:", error)
-      alert("Erro ao enviar imagens. Verifique sua conexão com o Vercel Blob.")
+      alert("Erro ao enviar imagens. Modo offline ativado.")
     } finally {
       setUploading(false)
     }
@@ -125,7 +124,7 @@ const StoragePageContent = () => {
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex items-center justify-center pt-24">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando arquivos do Vercel Blob...</p>
+          <p className="text-gray-600">Carregando arquivos...</p>
         </div>
       </div>
     )
@@ -138,7 +137,7 @@ const StoragePageContent = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-dancing font-bold text-gray-800">Gerenciar Imagens</h1>
-            <p className="text-gray-600">Sistema Vercel Blob - Armazenamento em nuvem</p>
+            <p className="text-gray-600">Sistema de armazenamento de imagens</p>
           </div>
 
           <Button asChild variant="outline" className="bg-transparent">
@@ -146,10 +145,50 @@ const StoragePageContent = () => {
           </Button>
         </div>
 
+        {/* Connection Status Warning */}
+        {!blobConfigured && (
+          <Card className="mb-8 border-yellow-200 bg-yellow-50">
+            <CardContent className="pt-6">
+              <div className="flex gap-4">
+                <AlertCircle className="h-6 w-6 text-yellow-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-yellow-800 mb-2">Vercel Blob não configurado</h3>
+                  <p className="text-sm text-yellow-700 mb-3">
+                    O sistema está usando armazenamento local (localStorage). As imagens não serão persistidas em
+                    produção.
+                  </p>
+                  <div className="bg-white rounded p-3 text-sm">
+                    <p className="font-medium text-gray-800 mb-2">Para configurar:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-gray-600">
+                      <li>Acesse vercel.com/dashboard/stores</li>
+                      <li>Crie uma Blob Store</li>
+                      <li>Copie o BLOB_READ_WRITE_TOKEN</li>
+                      <li>Adicione às variáveis de ambiente</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Upload Section */}
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Upload de Imagens (Vercel Blob)</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Upload de Imagens
+              {blobConfigured ? (
+                <span className="text-sm font-normal text-green-600 flex items-center gap-1">
+                  <Wifi className="h-4 w-4" />
+                  Vercel Blob
+                </span>
+              ) : (
+                <span className="text-sm font-normal text-yellow-600 flex items-center gap-1">
+                  <WifiOff className="h-4 w-4" />
+                  Modo Local
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4">
@@ -176,7 +215,9 @@ const StoragePageContent = () => {
               </Button>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              ✓ Conectado ao Vercel Blob - Imagens serão comprimidas automaticamente
+              {blobConfigured
+                ? "✓ Imagens serão salvas no Vercel Blob"
+                : "⚠️ Imagens serão salvas localmente (não recomendado para produção)"}
             </p>
           </CardContent>
         </Card>
@@ -226,7 +267,13 @@ const StoragePageContent = () => {
               <Card className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="aspect-square relative bg-gray-100">
                   <Image src={file.url || "/placeholder.svg"} alt={file.pathname} fill className="object-cover" />
-                  <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded">Blob</div>
+                  <div
+                    className={`absolute top-2 left-2 text-white text-xs px-2 py-1 rounded ${
+                      file.url.startsWith("http") ? "bg-green-500" : "bg-yellow-500"
+                    }`}
+                  >
+                    {file.url.startsWith("http") ? "Blob" : "Local"}
+                  </div>
                 </div>
                 <CardContent className="p-4">
                   <div className="space-y-2">
@@ -271,7 +318,7 @@ const StoragePageContent = () => {
         {/* Storage Stats */}
         <Card className="mt-8">
           <CardHeader>
-            <CardTitle>Estatísticas do Vercel Blob</CardTitle>
+            <CardTitle>Estatísticas de Armazenamento</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -288,8 +335,10 @@ const StoragePageContent = () => {
                 <div className="text-gray-600 text-sm">Tipos de Arquivo</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-500">Ativo</div>
-                <div className="text-gray-600 text-sm">Status da Conexão</div>
+                <div className={`text-2xl font-bold ${stats.usingBlob ? "text-green-500" : "text-yellow-500"}`}>
+                  {stats.usingBlob ? "Blob" : "Local"}
+                </div>
+                <div className="text-gray-600 text-sm">Modo de Armazenamento</div>
               </div>
             </div>
 

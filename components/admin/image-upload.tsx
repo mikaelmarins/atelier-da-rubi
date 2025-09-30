@@ -2,9 +2,9 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Upload, X, Loader2, CheckCircle } from "lucide-react"
+import { Upload, X, Loader2, CheckCircle, Wifi, WifiOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StorageService } from "@/lib/storage"
 import Image from "next/image"
@@ -20,7 +20,13 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
   const [uploading, setUploading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
+  const [blobConfigured, setBlobConfigured] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    // Verificar se Blob está configurado
+    setBlobConfigured(StorageService.isBlobConfigured())
+  }, [])
 
   const handleFiles = async (files: FileList) => {
     if (files.length === 0) return
@@ -36,7 +42,6 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
     setUploading(true)
 
     try {
-      // Validar e comprimir arquivos
       const validFiles: File[] = []
 
       for (const file of fileArray) {
@@ -46,7 +51,6 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
           continue
         }
 
-        // Comprimir imagem antes do upload
         setUploadProgress((prev) => ({ ...prev, [file.name]: 25 }))
         const compressedFile = await StorageService.compressImage(file, 0.85)
         validFiles.push(compressedFile)
@@ -59,11 +63,9 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
         return
       }
 
-      // Upload das imagens para Vercel Blob
       const uploadResults = await StorageService.uploadMultipleImages(validFiles)
       const newImageUrls = uploadResults.map((result) => result.url)
 
-      // Atualizar progresso
       validFiles.forEach((file) => {
         setUploadProgress((prev) => ({ ...prev, [file.name]: 100 }))
       })
@@ -72,11 +74,10 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
       setImages(updatedImages)
       onImagesUploaded(updatedImages)
 
-      // Limpar progresso após sucesso
       setTimeout(() => setUploadProgress({}), 1000)
     } catch (error) {
       console.error("Error uploading images:", error)
-      alert("Erro ao fazer upload das imagens. Verifique sua conexão com o Vercel Blob.")
+      alert("Erro ao fazer upload das imagens. Usando armazenamento local.")
       setUploadProgress({})
     } finally {
       setUploading(false)
@@ -107,19 +108,27 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
     try {
       const imageUrl = images[index]
 
-      // Extrair pathname da URL do Vercel Blob
-      const url = new URL(imageUrl)
-      const pathname = url.pathname.substring(1) // Remove a barra inicial
+      // Se for base64, extrair pathname
+      if (imageUrl.startsWith("data:")) {
+        // localStorage - apenas remover da interface
+        const updatedImages = images.filter((_, i) => i !== index)
+        setImages(updatedImages)
+        onImagesUploaded(updatedImages)
+        return
+      }
 
-      // Deletar do Vercel Blob
-      await StorageService.deleteImage(pathname)
+      // Se for URL do Blob
+      if (imageUrl.startsWith("http")) {
+        const url = new URL(imageUrl)
+        const pathname = url.pathname.substring(1)
+        await StorageService.deleteImage(pathname)
+      }
 
       const updatedImages = images.filter((_, i) => i !== index)
       setImages(updatedImages)
       onImagesUploaded(updatedImages)
     } catch (error) {
       console.error("Error removing image:", error)
-      // Mesmo com erro, remove da interface
       const updatedImages = images.filter((_, i) => i !== index)
       setImages(updatedImages)
       onImagesUploaded(updatedImages)
@@ -128,6 +137,30 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
 
   return (
     <div className="space-y-4">
+      {/* Connection Status */}
+      <div
+        className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
+          blobConfigured
+            ? "bg-green-50 text-green-700 border border-green-200"
+            : "bg-yellow-50 text-yellow-700 border border-yellow-200"
+        }`}
+      >
+        {blobConfigured ? (
+          <>
+            <Wifi className="h-4 w-4" />
+            <span className="font-medium">Conectado ao Vercel Blob</span>
+          </>
+        ) : (
+          <>
+            <WifiOff className="h-4 w-4" />
+            <div className="flex-1">
+              <p className="font-medium">Modo Offline - Usando armazenamento local</p>
+              <p className="text-xs mt-1">Configure BLOB_READ_WRITE_TOKEN para usar Vercel Blob</p>
+            </div>
+          </>
+        )}
+      </div>
+
       {/* Upload Area */}
       <div
         className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
@@ -162,7 +195,6 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
             <p className="text-xs text-gray-500">
               PNG, JPG, WebP até 5MB ({images.length}/{maxImages})
             </p>
-            <p className="text-xs text-green-600 mt-1">✓ Conectado ao Vercel Blob</p>
           </div>
         </div>
       </div>
@@ -218,7 +250,13 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
                 <div className="absolute top-2 left-2 bg-pink-500 text-white text-xs px-2 py-1 rounded">Principal</div>
               )}
 
-              <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded">Blob</div>
+              <div
+                className={`absolute top-2 right-2 text-white text-xs px-2 py-1 rounded ${
+                  blobConfigured && imageUrl.startsWith("http") ? "bg-green-500" : "bg-yellow-500"
+                }`}
+              >
+                {blobConfigured && imageUrl.startsWith("http") ? "Blob" : "Local"}
+              </div>
             </motion.div>
           ))}
         </div>
