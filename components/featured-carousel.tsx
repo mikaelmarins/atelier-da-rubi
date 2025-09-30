@@ -90,7 +90,7 @@ export default function FeaturedCarousel() {
 
   return (
     <section className="py-20 bg-gradient-to-br from-pink-50 via-white to-purple-50">
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 md:px-8 lg:px-12">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -105,7 +105,7 @@ export default function FeaturedCarousel() {
         </motion.div>
 
         <div
-          className="relative max-w-5xl mx-auto" // Era max-w-7xl
+          className="relative w-full px-4 md:px-8 lg:px-12 xl:px-16"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
