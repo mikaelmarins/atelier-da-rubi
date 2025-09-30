@@ -5,7 +5,7 @@ import AuthGuard from "@/components/auth/auth-guard"
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Upload, Trash2, Eye, Search, Filter, RotateCcw } from "lucide-react"
+import { Upload, Trash2, Eye, Search, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,9 +28,11 @@ const StoragePageContent = () => {
   const [uploading, setUploading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState("all")
+  const [stats, setStats] = useState({ totalFiles: 0, totalSize: 0, byType: {} })
 
   useEffect(() => {
     loadFiles()
+    loadStats()
   }, [])
 
   const loadFiles = async () => {
@@ -41,6 +43,15 @@ const StoragePageContent = () => {
       console.error("Error loading files:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadStats = async () => {
+    try {
+      const storageStats = await StorageService.getStorageStats()
+      setStats(storageStats)
+    } catch (error) {
+      console.error("Error loading stats:", error)
     }
   }
 
@@ -63,15 +74,19 @@ const StoragePageContent = () => {
         }
       }
 
-      await StorageService.uploadMultipleImages(fileArray)
+      // Comprimir e fazer upload
+      const compressedFiles = await Promise.all(fileArray.map((file) => StorageService.compressImage(file, 0.85)))
+
+      await StorageService.uploadMultipleImages(compressedFiles)
       await loadFiles()
+      await loadStats()
       alert("Imagens enviadas com sucesso!")
 
       // Limpar input
       e.target.value = ""
     } catch (error) {
       console.error("Error uploading files:", error)
-      alert("Erro ao enviar imagens")
+      alert("Erro ao enviar imagens. Verifique sua conexão com o Vercel Blob.")
     } finally {
       setUploading(false)
     }
@@ -83,23 +98,11 @@ const StoragePageContent = () => {
     try {
       await StorageService.deleteImage(pathname)
       await loadFiles()
+      await loadStats()
       alert("Imagem deletada com sucesso!")
     } catch (error) {
       console.error("Error deleting file:", error)
       alert("Erro ao deletar imagem")
-    }
-  }
-
-  const handleClearStorage = () => {
-    if (!confirm("Tem certeza que deseja limpar todo o storage? Esta ação não pode ser desfeita.")) return
-
-    try {
-      StorageService.clearStorage()
-      setFiles([])
-      alert("Storage limpo com sucesso!")
-    } catch (error) {
-      console.error("Error clearing storage:", error)
-      alert("Erro ao limpar storage")
     }
   }
 
@@ -117,14 +120,12 @@ const StoragePageContent = () => {
     return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
-  const stats = StorageService.getStorageStats()
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex items-center justify-center pt-24">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando arquivos...</p>
+          <p className="text-gray-600">Carregando arquivos do Vercel Blob...</p>
         </div>
       </div>
     )
@@ -137,24 +138,18 @@ const StoragePageContent = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-dancing font-bold text-gray-800">Gerenciar Imagens</h1>
-            <p className="text-gray-600">Sistema offline - Imagens simuladas com placeholders</p>
+            <p className="text-gray-600">Sistema Vercel Blob - Armazenamento em nuvem</p>
           </div>
 
-          <div className="flex gap-2">
-            <Button onClick={handleClearStorage} variant="outline" className="bg-transparent">
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Limpar Storage
-            </Button>
-            <Button asChild variant="outline" className="bg-transparent">
-              <Link href="/admin">Voltar ao Admin</Link>
-            </Button>
-          </div>
+          <Button asChild variant="outline" className="bg-transparent">
+            <Link href="/admin">Voltar ao Admin</Link>
+          </Button>
         </div>
 
         {/* Upload Section */}
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Upload de Imagens (Sistema Offline)</CardTitle>
+            <CardTitle>Upload de Imagens (Vercel Blob)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4">
@@ -181,7 +176,7 @@ const StoragePageContent = () => {
               </Button>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              💡 Sistema offline: As imagens são simuladas com placeholders para demonstração
+              ✓ Conectado ao Vercel Blob - Imagens serão comprimidas automaticamente
             </p>
           </CardContent>
         </Card>
@@ -231,7 +226,7 @@ const StoragePageContent = () => {
               <Card className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="aspect-square relative bg-gray-100">
                   <Image src={file.url || "/placeholder.svg"} alt={file.pathname} fill className="object-cover" />
-                  <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">Offline</div>
+                  <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded">Blob</div>
                 </div>
                 <CardContent className="p-4">
                   <div className="space-y-2">
@@ -276,7 +271,7 @@ const StoragePageContent = () => {
         {/* Storage Stats */}
         <Card className="mt-8">
           <CardHeader>
-            <CardTitle>Estatísticas do Storage Offline</CardTitle>
+            <CardTitle>Estatísticas do Vercel Blob</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -286,15 +281,15 @@ const StoragePageContent = () => {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-500">{formatFileSize(stats.totalSize)}</div>
-                <div className="text-gray-600 text-sm">Espaço Simulado</div>
+                <div className="text-gray-600 text-sm">Espaço Usado</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-500">{Object.keys(stats.byType).length}</div>
                 <div className="text-gray-600 text-sm">Tipos de Arquivo</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-500">Offline</div>
-                <div className="text-gray-600 text-sm">Modo de Operação</div>
+                <div className="text-2xl font-bold text-green-500">Ativo</div>
+                <div className="text-gray-600 text-sm">Status da Conexão</div>
               </div>
             </div>
 

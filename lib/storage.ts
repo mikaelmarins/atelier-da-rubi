@@ -1,11 +1,4 @@
-// Sistema de Storage Offline Simplificado
-interface StorageFile {
-  url: string
-  pathname: string
-  size: number
-  uploadedAt: string
-  contentType: string
-}
+import { put, del, list } from "@vercel/blob"
 
 export interface UploadResult {
   url: string
@@ -15,31 +8,21 @@ export interface UploadResult {
 }
 
 export class StorageService {
-  private static storageKey = "atelier-storage-files"
-
   static async uploadImage(file: File, folder = "products"): Promise<UploadResult> {
     try {
       const filename = `${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`
 
-      // Criar URL do placeholder baseado no nome do arquivo
-      const mockUrl = `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(file.name.split(".")[0])}`
-
-      const storageFile: StorageFile = {
-        url: mockUrl,
-        pathname: filename,
-        size: file.size,
-        uploadedAt: new Date().toISOString(),
+      // Upload real para Vercel Blob
+      const blob = await put(filename, file, {
+        access: "public",
         contentType: file.type,
-      }
-
-      // Salvar no localStorage
-      this.saveFile(storageFile)
+      })
 
       return {
-        url: mockUrl,
-        pathname: filename,
+        url: blob.url,
+        pathname: blob.pathname,
         contentType: file.type,
-        contentDisposition: "",
+        contentDisposition: `inline; filename="${file.name}"`,
       }
     } catch (error) {
       console.error("Error uploading image:", error)
@@ -59,9 +42,7 @@ export class StorageService {
 
   static async deleteImage(pathname: string): Promise<void> {
     try {
-      const files = this.getAllFiles()
-      const updatedFiles = files.filter((file) => file.pathname !== pathname)
-      this.saveAllFiles(updatedFiles)
+      await del(pathname)
     } catch (error) {
       console.error("Error deleting image:", error)
       throw new Error("Failed to delete image")
@@ -70,29 +51,37 @@ export class StorageService {
 
   static async deleteMultipleImages(pathnames: string[]): Promise<void> {
     try {
-      const files = this.getAllFiles()
-      const updatedFiles = files.filter((file) => !pathnames.includes(file.pathname))
-      this.saveAllFiles(updatedFiles)
+      const deletePromises = pathnames.map((pathname) => del(pathname))
+      await Promise.all(deletePromises)
     } catch (error) {
       console.error("Error deleting multiple images:", error)
       throw new Error("Failed to delete images")
     }
   }
 
-  static async listImages(folder = "products"): Promise<StorageFile[]> {
+  static async listImages(folder = "products") {
     try {
-      const files = this.getAllFiles()
-      return files.filter((file) => file.pathname.startsWith(folder))
+      const { blobs } = await list({
+        prefix: folder,
+      })
+
+      return blobs.map((blob) => ({
+        url: blob.url,
+        pathname: blob.pathname,
+        size: blob.size,
+        uploadedAt: blob.uploadedAt,
+        contentType: blob.contentType || "image/jpeg",
+      }))
     } catch (error) {
       console.error("Error listing images:", error)
-      throw new Error("Failed to list images")
+      return []
     }
   }
 
   static getImageUrl(pathname: string): string {
-    const files = this.getAllFiles()
-    const file = files.find((f) => f.pathname === pathname)
-    return file?.url || `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(pathname)}`
+    // Em produção com Blob, a URL já está completa
+    // Este método é mantido por compatibilidade
+    return pathname
   }
 
   static validateImageFile(file: File): { valid: boolean; error?: string } {
@@ -117,67 +106,81 @@ export class StorageService {
   }
 
   static async compressImage(file: File, quality = 0.8): Promise<File> {
-    // Em um sistema offline, retornamos o arquivo original
-    // Em produção, aqui seria implementada a compressão real
-    return file
-  }
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = (event) => {
+        const img = new Image()
+        img.src = event.target?.result as string
+        img.onload = () => {
+          const canvas = document.createElement("canvas")
+          const ctx = canvas.getContext("2d")
 
-  // Métodos privados para gerenciar localStorage
-  private static getAllFiles(): StorageFile[] {
-    if (typeof window === "undefined") return []
+          // Redimensionar se necessário (máximo 1200px)
+          let width = img.width
+          let height = img.height
+          const maxDimension = 1200
 
-    try {
-      const stored = localStorage.getItem(this.storageKey)
-      return stored ? JSON.parse(stored) : []
-    } catch (error) {
-      console.error("Error loading files from storage:", error)
-      return []
-    }
-  }
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = (height * maxDimension) / width
+              width = maxDimension
+            } else {
+              width = (width * maxDimension) / height
+              height = maxDimension
+            }
+          }
 
-  private static saveFile(file: StorageFile): void {
-    if (typeof window === "undefined") return
+          canvas.width = width
+          canvas.height = height
+          ctx?.drawImage(img, 0, 0, width, height)
 
-    try {
-      const files = this.getAllFiles()
-      files.push(file)
-      localStorage.setItem(this.storageKey, JSON.stringify(files))
-    } catch (error) {
-      console.error("Error saving file to storage:", error)
-    }
-  }
-
-  private static saveAllFiles(files: StorageFile[]): void {
-    if (typeof window === "undefined") return
-
-    try {
-      localStorage.setItem(this.storageKey, JSON.stringify(files))
-    } catch (error) {
-      console.error("Error saving files to storage:", error)
-    }
-  }
-
-  // Método para limpar o storage (útil para desenvolvimento)
-  static clearStorage(): void {
-    if (typeof window === "undefined") return
-    localStorage.removeItem(this.storageKey)
-  }
-
-  // Método para obter estatísticas do storage
-  static getStorageStats(): { totalFiles: number; totalSize: number; byType: Record<string, number> } {
-    const files = this.getAllFiles()
-
-    const stats = {
-      totalFiles: files.length,
-      totalSize: files.reduce((acc, file) => acc + file.size, 0),
-      byType: {} as Record<string, number>,
-    }
-
-    files.forEach((file) => {
-      const type = file.contentType.split("/")[1] || "unknown"
-      stats.byType[type] = (stats.byType[type] || 0) + 1
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name, {
+                  type: "image/jpeg",
+                  lastModified: Date.now(),
+                })
+                resolve(compressedFile)
+              } else {
+                reject(new Error("Failed to compress image"))
+              }
+            },
+            "image/jpeg",
+            quality,
+          )
+        }
+        img.onerror = () => reject(new Error("Failed to load image"))
+      }
+      reader.onerror = () => reject(new Error("Failed to read file"))
     })
+  }
 
-    return stats
+  // Método para obter estatísticas
+  static async getStorageStats() {
+    try {
+      const images = await this.listImages()
+
+      const stats = {
+        totalFiles: images.length,
+        totalSize: images.reduce((acc, file) => acc + file.size, 0),
+        byType: {} as Record<string, number>,
+      }
+
+      images.forEach((file) => {
+        const type = file.contentType.split("/")[1] || "unknown"
+        stats.byType[type] = (stats.byType[type] || 0) + 1
+      })
+
+      return stats
+    } catch (error) {
+      console.error("Error getting stats:", error)
+      return {
+        totalFiles: 0,
+        totalSize: 0,
+        byType: {},
+      }
+    }
   }
 }

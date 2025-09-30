@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useRef } from "react"
 import { motion } from "framer-motion"
-import { Upload, X, Loader2 } from "lucide-react"
+import { Upload, X, Loader2, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StorageService } from "@/lib/storage"
 import Image from "next/image"
@@ -19,6 +19,7 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
   const [images, setImages] = useState<string[]>(existingImages)
   const [uploading, setUploading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFiles = async (files: FileList) => {
@@ -35,7 +36,7 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
     setUploading(true)
 
     try {
-      // Validar arquivos
+      // Validar e comprimir arquivos
       const validFiles: File[] = []
 
       for (const file of fileArray) {
@@ -44,24 +45,39 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
           alert(`Erro no arquivo ${file.name}: ${validation.error}`)
           continue
         }
-        validFiles.push(file)
+
+        // Comprimir imagem antes do upload
+        setUploadProgress((prev) => ({ ...prev, [file.name]: 25 }))
+        const compressedFile = await StorageService.compressImage(file, 0.85)
+        validFiles.push(compressedFile)
+        setUploadProgress((prev) => ({ ...prev, [file.name]: 50 }))
       }
 
       if (validFiles.length === 0) {
         setUploading(false)
+        setUploadProgress({})
         return
       }
 
-      // Upload das imagens (sistema offline)
+      // Upload das imagens para Vercel Blob
       const uploadResults = await StorageService.uploadMultipleImages(validFiles)
       const newImageUrls = uploadResults.map((result) => result.url)
+
+      // Atualizar progresso
+      validFiles.forEach((file) => {
+        setUploadProgress((prev) => ({ ...prev, [file.name]: 100 }))
+      })
 
       const updatedImages = [...images, ...newImageUrls]
       setImages(updatedImages)
       onImagesUploaded(updatedImages)
+
+      // Limpar progresso após sucesso
+      setTimeout(() => setUploadProgress({}), 1000)
     } catch (error) {
       console.error("Error uploading images:", error)
-      alert("Erro ao fazer upload das imagens")
+      alert("Erro ao fazer upload das imagens. Verifique sua conexão com o Vercel Blob.")
+      setUploadProgress({})
     } finally {
       setUploading(false)
     }
@@ -91,12 +107,12 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
     try {
       const imageUrl = images[index]
 
-      // Extrair pathname da URL do placeholder para deletar do storage
-      const urlParts = imageUrl.split("text=")
-      if (urlParts.length > 1) {
-        const pathname = `products/${Date.now()}-${decodeURIComponent(urlParts[1])}`
-        await StorageService.deleteImage(pathname)
-      }
+      // Extrair pathname da URL do Vercel Blob
+      const url = new URL(imageUrl)
+      const pathname = url.pathname.substring(1) // Remove a barra inicial
+
+      // Deletar do Vercel Blob
+      await StorageService.deleteImage(pathname)
 
       const updatedImages = images.filter((_, i) => i !== index)
       setImages(updatedImages)
@@ -146,10 +162,34 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
             <p className="text-xs text-gray-500">
               PNG, JPG, WebP até 5MB ({images.length}/{maxImages})
             </p>
-            <p className="text-xs text-blue-500 mt-1">💡 Sistema offline - Imagens simuladas</p>
+            <p className="text-xs text-green-600 mt-1">✓ Conectado ao Vercel Blob</p>
           </div>
         </div>
       </div>
+
+      {/* Upload Progress */}
+      {Object.keys(uploadProgress).length > 0 && (
+        <div className="space-y-2">
+          {Object.entries(uploadProgress).map(([filename, progress]) => (
+            <div key={filename} className="bg-gray-50 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-700 truncate flex-1">{filename}</span>
+                {progress === 100 ? (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                ) : (
+                  <span className="text-sm text-gray-500">{progress}%</span>
+                )}
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-pink-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Image Preview Grid */}
       {images.length > 0 && (
@@ -178,7 +218,7 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
                 <div className="absolute top-2 left-2 bg-pink-500 text-white text-xs px-2 py-1 rounded">Principal</div>
               )}
 
-              <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">Offline</div>
+              <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded">Blob</div>
             </motion.div>
           ))}
         </div>
