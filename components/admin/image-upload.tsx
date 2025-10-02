@@ -1,10 +1,9 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef } from "react"
 import { motion } from "framer-motion"
-import { Upload, X, Loader2, CheckCircle, Wifi, WifiOff } from "lucide-react"
+import { Upload, X, Loader2, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StorageService } from "@/lib/storage"
 import Image from "next/image"
@@ -20,13 +19,7 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
   const [uploading, setUploading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
-  const [blobConfigured, setBlobConfigured] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    // Verificar se Blob está configurado
-    setBlobConfigured(StorageService.isBlobConfigured())
-  }, [])
 
   const handleFiles = async (files: FileList) => {
     if (files.length === 0) return
@@ -50,26 +43,27 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
           alert(`Erro no arquivo ${file.name}: ${validation.error}`)
           continue
         }
-
-        setUploadProgress((prev) => ({ ...prev, [file.name]: 25 }))
-        const compressedFile = await StorageService.compressImage(file, 0.85)
-        validFiles.push(compressedFile)
-        setUploadProgress((prev) => ({ ...prev, [file.name]: 50 }))
+        validFiles.push(file)
       }
 
       if (validFiles.length === 0) {
         setUploading(false)
-        setUploadProgress({})
         return
       }
 
-      const uploadResults = await StorageService.uploadMultipleImages(validFiles)
-      const newImageUrls = uploadResults.map((result) => result.url)
+      const uploadResults = []
 
-      validFiles.forEach((file) => {
+      for (let i = 0; i < validFiles.length; i++) {
+        const file = validFiles[i]
+        setUploadProgress((prev) => ({ ...prev, [file.name]: 33 }))
+
+        const result = await StorageService.uploadImage(file)
+        uploadResults.push(result)
+
         setUploadProgress((prev) => ({ ...prev, [file.name]: 100 }))
-      })
+      }
 
+      const newImageUrls = uploadResults.map((result) => result.url)
       const updatedImages = [...images, ...newImageUrls]
       setImages(updatedImages)
       onImagesUploaded(updatedImages)
@@ -77,7 +71,7 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
       setTimeout(() => setUploadProgress({}), 1000)
     } catch (error) {
       console.error("Error uploading images:", error)
-      alert("Erro ao fazer upload das imagens. Usando armazenamento local.")
+      alert("Erro ao fazer upload das imagens.")
       setUploadProgress({})
     } finally {
       setUploading(false)
@@ -106,62 +100,16 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
 
   const removeImage = async (index: number) => {
     try {
-      const imageUrl = images[index]
-
-      // Se for base64, extrair pathname
-      if (imageUrl.startsWith("data:")) {
-        // localStorage - apenas remover da interface
-        const updatedImages = images.filter((_, i) => i !== index)
-        setImages(updatedImages)
-        onImagesUploaded(updatedImages)
-        return
-      }
-
-      // Se for URL do Blob
-      if (imageUrl.startsWith("http")) {
-        const url = new URL(imageUrl)
-        const pathname = url.pathname.substring(1)
-        await StorageService.deleteImage(pathname)
-      }
-
       const updatedImages = images.filter((_, i) => i !== index)
       setImages(updatedImages)
       onImagesUploaded(updatedImages)
     } catch (error) {
       console.error("Error removing image:", error)
-      const updatedImages = images.filter((_, i) => i !== index)
-      setImages(updatedImages)
-      onImagesUploaded(updatedImages)
     }
   }
 
   return (
     <div className="space-y-4">
-      {/* Connection Status */}
-      <div
-        className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
-          blobConfigured
-            ? "bg-green-50 text-green-700 border border-green-200"
-            : "bg-yellow-50 text-yellow-700 border border-yellow-200"
-        }`}
-      >
-        {blobConfigured ? (
-          <>
-            <Wifi className="h-4 w-4" />
-            <span className="font-medium">Conectado ao Vercel Blob</span>
-          </>
-        ) : (
-          <>
-            <WifiOff className="h-4 w-4" />
-            <div className="flex-1">
-              <p className="font-medium">Modo Offline - Usando armazenamento local</p>
-              <p className="text-xs mt-1">Configure BLOB_READ_WRITE_TOKEN para usar Vercel Blob</p>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Upload Area */}
       <div
         className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
           dragActive ? "border-pink-400 bg-pink-50" : "border-gray-300 hover:border-pink-400 hover:bg-pink-50"
@@ -199,7 +147,6 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
         </div>
       </div>
 
-      {/* Upload Progress */}
       {Object.keys(uploadProgress).length > 0 && (
         <div className="space-y-2">
           {Object.entries(uploadProgress).map(([filename, progress]) => (
@@ -223,7 +170,6 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
         </div>
       )}
 
-      {/* Image Preview Grid */}
       {images.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {images.map((imageUrl, index) => (
@@ -249,14 +195,6 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
               {index === 0 && (
                 <div className="absolute top-2 left-2 bg-pink-500 text-white text-xs px-2 py-1 rounded">Principal</div>
               )}
-
-              <div
-                className={`absolute top-2 right-2 text-white text-xs px-2 py-1 rounded ${
-                  blobConfigured && imageUrl.startsWith("http") ? "bg-green-500" : "bg-yellow-500"
-                }`}
-              >
-                {blobConfigured && imageUrl.startsWith("http") ? "Blob" : "Local"}
-              </div>
             </motion.div>
           ))}
         </div>

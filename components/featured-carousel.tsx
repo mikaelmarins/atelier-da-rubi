@@ -15,9 +15,7 @@ export default function FeaturedCarousel() {
   const [featuredProductIds, setFeaturedProductIds] = useState<number[]>([])
   const [allProducts, setAllProducts] = useState(products)
 
-  // Carregar produtos e configuração do carrossel
   useEffect(() => {
-    // Carregar produtos do localStorage ou usar padrão
     const savedProducts = localStorage.getItem("atelier-products")
     if (savedProducts) {
       const parsed = JSON.parse(savedProducts)
@@ -26,30 +24,26 @@ export default function FeaturedCarousel() {
       }
     }
 
-    // Carregar configuração do carrossel
     const savedCarousel = localStorage.getItem("carousel-products")
     if (savedCarousel) {
       setFeaturedProductIds(JSON.parse(savedCarousel))
     } else {
-      // IDs padrão do carrossel
       setFeaturedProductIds([1, 2, 3, 4, 5])
     }
   }, [])
 
-  // Buscar produtos específicos pelos IDs configurados
   const featuredItems = featuredProductIds.map((id) => allProducts.find((product) => product.id === id)).filter(Boolean)
 
-  // Responsive items per view
   useEffect(() => {
     const updateItemsPerView = () => {
       if (window.innerWidth >= 1280) {
-        setItemsPerView(4) // xl screens
+        setItemsPerView(4)
       } else if (window.innerWidth >= 1024) {
-        setItemsPerView(3) // lg screens
+        setItemsPerView(3)
       } else if (window.innerWidth >= 768) {
-        setItemsPerView(2) // md screens
+        setItemsPerView(2)
       } else {
-        setItemsPerView(1) // sm screens
+        setItemsPerView(1)
       }
     }
 
@@ -58,7 +52,6 @@ export default function FeaturedCarousel() {
     return () => window.removeEventListener("resize", updateItemsPerView)
   }, [])
 
-  // Auto-rotate carousel
   useEffect(() => {
     if (!isHovered && featuredItems.length > 0) {
       const interval = setInterval(() => {
@@ -66,7 +59,7 @@ export default function FeaturedCarousel() {
           const maxIndex = Math.max(0, featuredItems.length - itemsPerView)
           return prev >= maxIndex ? 0 : prev + 1
         })
-      }, 4000) // Change slide every 4 seconds
+      }, 4000)
 
       return () => clearInterval(interval)
     }
@@ -109,10 +102,9 @@ export default function FeaturedCarousel() {
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
-          {/* Enhanced Desktop Carousel */}
           <div className="hidden md:block overflow-hidden">
             <motion.div
-              className="flex gap-4" // Era gap-6
+              className="flex gap-4"
               animate={{
                 x: `${-currentIndex * (100 / itemsPerView)}%`,
               }}
@@ -156,7 +148,6 @@ export default function FeaturedCarousel() {
                         </Button>
                       </div>
 
-                      {/* Product badge */}
                       {item.featured && (
                         <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-semibold px-2 py-1 rounded-full">
                           Destaque
@@ -164,8 +155,6 @@ export default function FeaturedCarousel() {
                       )}
                     </div>
                     <div className="p-4">
-                      {" "}
-                      // Era p-6
                       <h3 className="font-semibold text-lg mb-2 text-gray-800 line-clamp-2 group-hover:text-pink-600 transition-colors">
                         {item.name}
                       </h3>
@@ -188,7 +177,6 @@ export default function FeaturedCarousel() {
             </motion.div>
           </div>
 
-          {/* Enhanced Mobile Carousel */}
           <div className="md:hidden">
             <div className="relative">
               <AnimatePresence mode="wait">
@@ -235,7 +223,6 @@ export default function FeaturedCarousel() {
             </div>
           </div>
 
-          {/* Enhanced Navigation Buttons */}
           {maxIndex > 0 && (
             <>
               <Button
@@ -258,7 +245,6 @@ export default function FeaturedCarousel() {
             </>
           )}
 
-          {/* Enhanced Dots Indicator */}
           <div className="flex justify-center mt-8 space-x-2">
             {Array.from({ length: maxIndex + 1 }).map((_, index) => (
               <button

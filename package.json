@@ -15,7 +15,7 @@
     "@radix-ui/react-dropdown-menu": "^2.0.5",
     "@radix-ui/react-label": "latest",
     "@radix-ui/react-select": "^1.2.2",
-    "@vercel/blob": "latest",
+    "@vercel/blob": "2.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "latest",
