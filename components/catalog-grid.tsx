@@ -39,7 +39,6 @@ export default function CatalogGrid() {
 
   return (
     <div>
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 mb-8 p-4 sm:p-6 bg-white rounded-2xl shadow-lg border border-yellow-200">
         <div className="flex items-center gap-2">
           <Filter className="h-5 w-5 text-yellow-600" />
@@ -60,7 +59,6 @@ export default function CatalogGrid() {
         </Select>
       </div>
 
-      {/* Products Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
         {filteredItems.map((item, index) => (
           <motion.div
@@ -68,12 +66,12 @@ export default function CatalogGrid() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: index * 0.1 }}
-            className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden relative"
+            className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
           >
             <div className="relative overflow-hidden">
               <div className="aspect-square">
                 <Image
-                  src={item.images[0] || "/placeholder.svg"}
+                  src={item.images[0]?.image_url || "/placeholder.svg"}
                   alt={item.name}
                   width={400}
                   height={400}
@@ -81,7 +79,7 @@ export default function CatalogGrid() {
                 />
               </div>
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-center justify-center">
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex gap-2">
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <Button asChild size="sm" className="bg-white text-gray-800 hover:bg-gray-100">
                     <Link href={`/catalogo/${item.id}`}>
                       <Eye className="h-4 w-4 mr-2" />
@@ -100,7 +98,7 @@ export default function CatalogGrid() {
                 <Button
                   asChild
                   size="sm"
-                  className="bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white text-xs sm:text-sm px-3 sm:px-4"
+                  className="bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white"
                 >
                   <Link href={`/catalogo/${item.id}`}>Ver Detalhes</Link>
                 </Button>

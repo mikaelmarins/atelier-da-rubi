@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { Eye, EyeOff, Lock, User, Heart, Loader2 } from "lucide-react"
@@ -30,7 +29,7 @@ export default function LoginForm() {
     setError("")
 
     try {
-      const result = await login(formData)
+      const result = await login(formData.email, formData.password)
 
       if (result.success) {
         router.push("/admin")
@@ -49,7 +48,6 @@ export default function LoginForm() {
       ...prev,
       [field]: value,
     }))
-    // Limpar erro quando usuário começar a digitar
     if (error) setError("")
   }
 
@@ -147,24 +145,6 @@ export default function LoginForm() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Informações de Login para Desenvolvimento */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg"
-        >
-          <p className="text-blue-800 text-sm text-center font-medium mb-2">🔐 Credenciais de Acesso</p>
-          <div className="text-blue-700 text-xs space-y-1">
-            <p>
-              <strong>Email:</strong> rubiananascimento1@gmail.com
-            </p>
-            <p>
-              <strong>Senha:</strong> Senha@123
-            </p>
-          </div>
-        </motion.div>
       </motion.div>
     </div>
   )

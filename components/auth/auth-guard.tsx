@@ -1,10 +1,9 @@
 "use client"
 
 import type React from "react"
-
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { AuthService } from "@/lib/auth"
+import { useAuth } from "@/hooks/use-auth"
 import { Loader2 } from "lucide-react"
 
 interface AuthGuardProps {
@@ -12,34 +11,21 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children }: AuthGuardProps) {
-  const [loading, setLoading] = useState(true)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [checking, setChecking] = useState(true)
+  const { isAuthenticated, loading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    const checkAuth = () => {
-      const authenticated = AuthService.isAuthenticated()
-
-      if (!authenticated) {
+    if (!loading) {
+      if (!isAuthenticated) {
         router.push("/admin/login")
-        return
+      } else {
+        setChecking(false)
       }
-
-      // Estender sessão
-      AuthService.extendSession()
-      setIsAuthenticated(true)
-      setLoading(false)
     }
+  }, [isAuthenticated, loading, router])
 
-    checkAuth()
-
-    // Verificar autenticação periodicamente
-    const interval = setInterval(checkAuth, 60000) // A cada minuto
-
-    return () => clearInterval(interval)
-  }, [router])
-
-  if (loading) {
+  if (loading || checking) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
@@ -51,7 +37,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   }
 
   if (!isAuthenticated) {
-    return null // Redirecionamento em andamento
+    return null
   }
 
   return <>{children}</>

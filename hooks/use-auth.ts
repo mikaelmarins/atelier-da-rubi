@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { AuthService, type User, type LoginCredentials } from "@/lib/auth"
+import { AuthServiceSupabase, type User } from "@/lib/auth"
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -9,37 +9,39 @@ export function useAuth() {
 
   useEffect(() => {
     // Verificar se há usuário logado
-    const currentUser = AuthService.getCurrentUser()
-    setUser(currentUser)
-    setLoading(false)
+    AuthServiceSupabase.getCurrentUser().then((currentUser) => {
+      setUser(currentUser)
+      setLoading(false)
+    })
 
-    // Estender sessão se usuário estiver logado
-    if (currentUser) {
-      AuthService.extendSession()
+    // Ouvir mudanças de autenticação
+    const { data: authListener } = AuthServiceSupabase.onAuthStateChange((user) => {
+      setUser(user)
+      setLoading(false)
+    })
+
+    return () => {
+      authListener?.subscription.unsubscribe()
     }
   }, [])
 
-  const login = async (credentials: LoginCredentials) => {
-    const result = await AuthService.login(credentials)
-
+  const login = async (email: string, password: string) => {
+    const result = await AuthServiceSupabase.login(email, password)
     if (result.success && result.user) {
       setUser(result.user)
     }
-
     return result
   }
 
-  const logout = () => {
-    AuthService.logout()
+  const logout = async () => {
+    await AuthServiceSupabase.logout()
     setUser(null)
   }
-
-  const isAuthenticated = user !== null
 
   return {
     user,
     loading,
-    isAuthenticated,
+    isAuthenticated: user !== null,
     login,
     logout,
   }
