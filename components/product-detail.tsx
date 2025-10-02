@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { ArrowLeft, Share2, ShoppingCart, X, ChevronLeft, ChevronRight, ZoomIn, Maximize2 } from "lucide-react"
@@ -10,8 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import Link from "next/link"
 import Image from "next/image"
-import type { Product } from "@/data/products"
-import { products as defaultProducts } from "@/data/products"
+import { useProduct } from "@/hooks/use-products"
+import { ProductService } from "@/lib/product-service"
 import { useRouter } from "next/navigation"
 
 type Props = {
@@ -20,74 +19,62 @@ type Props = {
 
 export default function ProductDetail({ productId }: Props) {
   const router = useRouter()
-  const [product, setProduct] = useState<Product | null>(null)
+  const { product, loading } = useProduct(productId)
   const [selectedImage, setSelectedImage] = useState(0)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isZoomed, setIsZoomed] = useState(false)
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 })
-  const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([])
 
   useEffect(() => {
     window.scrollTo(0, 0)
+  }, [productId])
 
-    // Carregar produto do localStorage
-    const loadProduct = () => {
-      try {
-        const savedProducts = localStorage.getItem("atelier-products")
-        let allProducts = defaultProducts
-
-        if (savedProducts) {
-          const parsed = JSON.parse(savedProducts)
-          if (parsed.length > 0) {
-            allProducts = parsed
-          }
-        }
-
-        const foundProduct = allProducts.find((p: Product) => p.id === productId)
-
-        if (!foundProduct) {
-          router.push("/catalogo")
-          return
-        }
-
-        setProduct(foundProduct)
-
-        // Carregar produtos relacionados
-        const related = allProducts
-          .filter((p: Product) => p.category === foundProduct.category && p.id !== productId)
-          .slice(0, 3)
-        setRelatedProducts(related)
-      } catch (error) {
-        console.error("Error loading product:", error)
-        router.push("/catalogo")
-      }
+  useEffect(() => {
+    if (product) {
+      const related = ProductService.getProductsByCategory(product.category)
+        .filter((p) => p.id !== productId)
+        .slice(0, 3)
+      setRelatedProducts(related)
     }
+  }, [product, productId])
 
-    loadProduct()
-  }, [productId, router])
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-12 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+        <p className="text-gray-600">Carregando produto...</p>
+      </div>
+    )
+  }
+
+  if (!product) {
+    return (
+      <div className="container mx-auto px-4 py-12 text-center">
+        <p className="text-gray-600 mb-4">Produto não encontrado</p>
+        <Button asChild>
+          <Link href="/catalogo">Voltar ao Catálogo</Link>
+        </Button>
+      </div>
+    )
+  }
 
   const whatsappNumber = "5522997890934"
-  const whatsappMessage = product
-    ? `Olá! Tenho interesse no produto "${product.name}" (${product.price}). Gostaria de mais informações sobre entrega para minha região!`
-    : ""
+  const whatsappMessage = `Olá! Tenho interesse no produto "${product.name}" (${product.price}). Gostaria de mais informações sobre entrega para minha região!`
 
   const nextImage = () => {
-    if (!product) return
     setSelectedImage((prev) => (prev + 1) % product.images.length)
   }
 
   const prevImage = () => {
-    if (!product) return
     setSelectedImage((prev) => (prev - 1 + product.images.length) % product.images.length)
   }
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isZoomed) return
-
     const rect = e.currentTarget.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * 100
     const y = ((e.clientY - rect.top) / rect.height) * 100
-
     setZoomPosition({ x, y })
   }
 
@@ -95,8 +82,8 @@ export default function ProductDetail({ productId }: Props) {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: product?.name,
-          text: product?.description,
+          title: product.name,
+          text: product.description,
           url: window.location.href,
         })
       } catch (error) {
@@ -106,15 +93,6 @@ export default function ProductDetail({ productId }: Props) {
       navigator.clipboard.writeText(window.location.href)
       alert("Link copiado para a área de transferência!")
     }
-  }
-
-  if (!product) {
-    return (
-      <div className="container mx-auto px-4 py-12 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-        <p className="text-gray-600">Carregando produto...</p>
-      </div>
-    )
   }
 
   return (
@@ -130,10 +108,9 @@ export default function ProductDetail({ productId }: Props) {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-        {/* Images Section with Zoom */}
+        {/* Images Section */}
         <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }}>
           <div className="space-y-4">
-            {/* Main Image with Zoom */}
             <div className="relative group">
               <div
                 className="aspect-square bg-white rounded-2xl shadow-lg overflow-hidden cursor-zoom-in relative"
@@ -149,23 +126,15 @@ export default function ProductDetail({ productId }: Props) {
                   className={`w-full h-full object-cover transition-transform duration-300 ${
                     isZoomed ? "scale-150" : "scale-100"
                   }`}
-                  style={
-                    isZoomed
-                      ? {
-                          transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%`,
-                        }
-                      : {}
-                  }
+                  style={isZoomed ? { transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%` } : {}}
                   onClick={() => setIsModalOpen(true)}
                   priority
                 />
 
-                {/* Zoom Indicator */}
                 <div className="absolute top-4 right-4 bg-black/60 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                   <ZoomIn className="h-4 w-4" />
                 </div>
 
-                {/* Navigation arrows */}
                 {product.images.length > 1 && (
                   <>
                     <Button
@@ -187,7 +156,6 @@ export default function ProductDetail({ productId }: Props) {
                   </>
                 )}
 
-                {/* Fullscreen button */}
                 <Button
                   variant="outline"
                   size="icon"
@@ -197,7 +165,6 @@ export default function ProductDetail({ productId }: Props) {
                   <Maximize2 className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
 
-                {/* Image counter for mobile */}
                 {product.images.length > 1 && (
                   <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
                     {selectedImage + 1}/{product.images.length}
@@ -206,7 +173,6 @@ export default function ProductDetail({ productId }: Props) {
               </div>
             </div>
 
-            {/* Enhanced Thumbnail Images */}
             {product.images.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {product.images.map((image, index) => (
@@ -230,25 +196,10 @@ export default function ProductDetail({ productId }: Props) {
                 ))}
               </div>
             )}
-
-            {/* Mobile dots indicator */}
-            {product.images.length > 1 && (
-              <div className="flex sm:hidden justify-center gap-2 mt-4">
-                {product.images.map((_, index) => (
-                  <button
-                    key={index}
-                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                      selectedImage === index ? "bg-yellow-500 scale-125" : "bg-gray-300"
-                    }`}
-                    onClick={() => setSelectedImage(index)}
-                  />
-                ))}
-              </div>
-            )}
           </div>
         </motion.div>
 
-        {/* Product Info Section */}
+        {/* Product Info */}
         <motion.div
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
@@ -266,7 +217,6 @@ export default function ProductDetail({ productId }: Props) {
             <p className="text-gray-600 leading-relaxed text-sm sm:text-base">{product.description}</p>
           </div>
 
-          {/* Shipping Info */}
           <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-2xl p-4 border border-blue-200">
             <h3 className="font-semibold text-gray-800 mb-2">🚚 Informações de Entrega</h3>
             <ul className="text-sm text-gray-600 space-y-1">
@@ -282,7 +232,6 @@ export default function ProductDetail({ productId }: Props) {
             </ul>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex flex-col gap-3">
             <Button asChild size="lg" className="w-full bg-green-500 hover:bg-green-600 text-white">
               <a
@@ -306,35 +255,22 @@ export default function ProductDetail({ productId }: Props) {
             </Button>
           </div>
 
-          {/* Product Details */}
           <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg space-y-4 border border-yellow-200">
             <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">Detalhes do Produto</h3>
-
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <span className="font-medium text-gray-700">Material:</span>
                 <p className="text-gray-600 text-sm sm:text-base">{product.details.material}</p>
               </div>
-
               <div>
                 <span className="font-medium text-gray-700">Cuidados:</span>
                 <p className="text-gray-600 text-sm sm:text-base">{product.details.cuidados}</p>
               </div>
-
               <div>
                 <span className="font-medium text-gray-700">Tempo de Produção:</span>
                 <p className="text-gray-600 text-sm sm:text-base">{product.details.tempo_producao}</p>
               </div>
             </div>
-          </div>
-
-          {/* Additional Info */}
-          <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-4 sm:p-6 border border-yellow-200">
-            <h3 className="font-semibold text-gray-800 mb-3">💝 Produto Artesanal</h3>
-            <p className="text-gray-600 text-xs sm:text-sm">
-              Esta peça é bordada à mão com muito carinho pela Rubiana Lima. Pequenas variações podem ocorrer, tornando
-              cada produto único e especial.
-            </p>
           </div>
         </motion.div>
       </div>
@@ -372,7 +308,7 @@ export default function ProductDetail({ productId }: Props) {
         </motion.div>
       )}
 
-      {/* Enhanced Image Modal */}
+      {/* Image Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-6xl w-full p-0 m-2">
           <div className="relative bg-black">
@@ -417,33 +353,9 @@ export default function ProductDetail({ productId }: Props) {
               </>
             )}
 
-            {/* Enhanced image counter */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/80 text-white text-sm px-4 py-2 rounded-full">
               {selectedImage + 1} de {product.images.length}
             </div>
-
-            {/* Thumbnail navigation in modal */}
-            {product.images.length > 1 && (
-              <div className="absolute bottom-4 left-4 right-4 flex justify-center gap-2 overflow-x-auto">
-                {product.images.map((image, index) => (
-                  <button
-                    key={index}
-                    className={`flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${
-                      selectedImage === index ? "border-yellow-400" : "border-white/50"
-                    }`}
-                    onClick={() => setSelectedImage(index)}
-                  >
-                    <Image
-                      src={image || "/placeholder.svg"}
-                      alt={`Miniatura ${index + 1}`}
-                      width={48}
-                      height={48}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </DialogContent>
       </Dialog>

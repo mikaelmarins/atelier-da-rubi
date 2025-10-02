@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
 import Image from "next/image"
-import { getProductsByCategory } from "@/data/products"
+import { useProducts } from "@/hooks/use-products"
 
 const categories = [
   { value: "todos", label: "Todos os Produtos" },
@@ -22,8 +22,20 @@ const categories = [
 ]
 
 export default function CatalogGrid() {
+  const { products, loading } = useProducts()
   const [selectedCategory, setSelectedCategory] = useState("todos")
-  const filteredItems = getProductsByCategory(selectedCategory)
+
+  const filteredItems =
+    selectedCategory === "todos" ? products : products.filter((p) => p.category === selectedCategory)
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+        <p className="text-gray-600">Carregando produtos...</p>
+      </div>
+    )
+  }
 
   return (
     <div>
