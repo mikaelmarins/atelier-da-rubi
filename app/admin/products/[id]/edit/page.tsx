@@ -3,7 +3,7 @@
 import type React from "react"
 import AuthGuard from "@/components/auth/auth-guard"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { ArrowLeft, Save, Loader2, GripVertical, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { getProductById } from "@/data/products"
 import type { Product } from "@/data/products"
 import Image from "next/image"
 import ImageUpload from "@/components/admin/image-upload"
@@ -33,10 +32,11 @@ const categories = [
 const tamanhos = ["RN", "P", "M", "G", "1 ano", "2 anos", "Berço Padrão", "Mini Berço", "Único"]
 
 type Props = {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 function EditProductPageContent({ params }: Props) {
+  const resolvedParams = use(params)
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [product, setProduct] = useState<Product | null>(null)
@@ -44,12 +44,26 @@ function EditProductPageContent({ params }: Props) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
   useEffect(() => {
-    const foundProduct = getProductById(Number.parseInt(params.id))
-    if (foundProduct) {
-      setProduct(foundProduct)
-      setImages(foundProduct.images)
+    // Carregar produto do localStorage
+    const loadProduct = () => {
+      try {
+        const savedProducts = localStorage.getItem("atelier-products")
+        if (savedProducts) {
+          const products = JSON.parse(savedProducts)
+          const foundProduct = products.find((p: Product) => p.id === Number.parseInt(resolvedParams.id))
+
+          if (foundProduct) {
+            setProduct(foundProduct)
+            setImages(foundProduct.images || [])
+          }
+        }
+      } catch (error) {
+        console.error("Error loading product:", error)
+      }
     }
-  }, [params.id])
+
+    loadProduct()
+  }, [resolvedParams.id])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,7 +84,7 @@ function EditProductPageContent({ params }: Props) {
         images,
       }
 
-      // Salvar no localStorage para demonstração
+      // Salvar no localStorage
       const existingProducts = JSON.parse(localStorage.getItem("atelier-products") || "[]")
       const productIndex = existingProducts.findIndex((p: Product) => p.id === product.id)
 
@@ -83,7 +97,9 @@ function EditProductPageContent({ params }: Props) {
       localStorage.setItem("atelier-products", JSON.stringify(existingProducts))
 
       alert("Produto atualizado com sucesso!")
-      router.push("/admin")
+
+      // Forçar recarregamento da página para atualizar todos os componentes
+      window.location.href = "/admin"
     } catch (error) {
       console.error("Error updating product:", error)
       alert("Erro ao atualizar produto")

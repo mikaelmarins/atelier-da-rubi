@@ -11,13 +11,16 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import Link from "next/link"
 import Image from "next/image"
 import type { Product } from "@/data/products"
-import { getProductsByCategory } from "@/data/products"
+import { products as defaultProducts } from "@/data/products"
+import { useRouter } from "next/navigation"
 
 type Props = {
-  product: Product
+  productId: number
 }
 
-export default function ProductDetail({ product }: Props) {
+export default function ProductDetail({ productId }: Props) {
+  const router = useRouter()
+  const [product, setProduct] = useState<Product | null>(null)
   const [selectedImage, setSelectedImage] = useState(0)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isZoomed, setIsZoomed] = useState(false)
@@ -26,21 +29,55 @@ export default function ProductDetail({ product }: Props) {
 
   useEffect(() => {
     window.scrollTo(0, 0)
-    // Carregar produtos relacionados
-    const related = getProductsByCategory(product.category)
-      .filter((p) => p.id !== product.id)
-      .slice(0, 3)
-    setRelatedProducts(related)
-  }, [product])
+
+    // Carregar produto do localStorage
+    const loadProduct = () => {
+      try {
+        const savedProducts = localStorage.getItem("atelier-products")
+        let allProducts = defaultProducts
+
+        if (savedProducts) {
+          const parsed = JSON.parse(savedProducts)
+          if (parsed.length > 0) {
+            allProducts = parsed
+          }
+        }
+
+        const foundProduct = allProducts.find((p: Product) => p.id === productId)
+
+        if (!foundProduct) {
+          router.push("/catalogo")
+          return
+        }
+
+        setProduct(foundProduct)
+
+        // Carregar produtos relacionados
+        const related = allProducts
+          .filter((p: Product) => p.category === foundProduct.category && p.id !== productId)
+          .slice(0, 3)
+        setRelatedProducts(related)
+      } catch (error) {
+        console.error("Error loading product:", error)
+        router.push("/catalogo")
+      }
+    }
+
+    loadProduct()
+  }, [productId, router])
 
   const whatsappNumber = "5522997890934"
-  const whatsappMessage = `Olá! Tenho interesse no produto "${product.name}" (${product.price}). Gostaria de mais informações sobre entrega para minha região!`
+  const whatsappMessage = product
+    ? `Olá! Tenho interesse no produto "${product.name}" (${product.price}). Gostaria de mais informações sobre entrega para minha região!`
+    : ""
 
   const nextImage = () => {
+    if (!product) return
     setSelectedImage((prev) => (prev + 1) % product.images.length)
   }
 
   const prevImage = () => {
+    if (!product) return
     setSelectedImage((prev) => (prev - 1 + product.images.length) % product.images.length)
   }
 
@@ -58,8 +95,8 @@ export default function ProductDetail({ product }: Props) {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: product.name,
-          text: product.description,
+          title: product?.name,
+          text: product?.description,
           url: window.location.href,
         })
       } catch (error) {
@@ -69,6 +106,15 @@ export default function ProductDetail({ product }: Props) {
       navigator.clipboard.writeText(window.location.href)
       alert("Link copiado para a área de transferência!")
     }
+  }
+
+  if (!product) {
+    return (
+      <div className="container mx-auto px-4 py-12 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+        <p className="text-gray-600">Carregando produto...</p>
+      </div>
+    )
   }
 
   return (
