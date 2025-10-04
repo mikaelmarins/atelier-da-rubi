@@ -3,7 +3,7 @@
 import type React from "react"
 import AuthGuard from "@/components/auth/auth-guard"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect } from "react"
 import { ArrowLeft, Save, Loader2, GripVertical, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import type { Product } from "@/data/products"
 import Image from "next/image"
 import ImageUpload from "@/components/admin/image-upload"
@@ -31,17 +31,15 @@ const categories = [
 
 const tamanhos = ["RN", "P", "M", "G", "1 ano", "2 anos", "Berço Padrão", "Mini Berço", "Único"]
 
-type Props = {
-  params: Promise<{ id: string }>
-}
-
-function EditProductPageContent({ params }: Props) {
-  const resolvedParams = use(params)
+function EditProductPageContent() {
+  const params = useParams()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [product, setProduct] = useState<Product | null>(null)
   const [images, setImages] = useState<string[]>([])
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+
+  const productId = params.id as string
 
   useEffect(() => {
     // Carregar produto do localStorage
@@ -50,7 +48,7 @@ function EditProductPageContent({ params }: Props) {
         const savedProducts = localStorage.getItem("atelier-products")
         if (savedProducts) {
           const products = JSON.parse(savedProducts)
-          const foundProduct = products.find((p: Product) => p.id === Number.parseInt(resolvedParams.id))
+          const foundProduct = products.find((p: Product) => p.id === Number.parseInt(productId))
 
           if (foundProduct) {
             setProduct(foundProduct)
@@ -63,7 +61,7 @@ function EditProductPageContent({ params }: Props) {
     }
 
     loadProduct()
-  }, [resolvedParams.id])
+  }, [productId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -428,10 +426,10 @@ function EditProductPageContent({ params }: Props) {
   )
 }
 
-export default function EditProductPage({ params }: Props) {
+export default function EditProductPage() {
   return (
     <AuthGuard>
-      <EditProductPageContent params={params} />
+      <EditProductPageContent />
     </AuthGuard>
   )
 }
