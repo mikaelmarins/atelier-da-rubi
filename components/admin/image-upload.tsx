@@ -8,20 +8,19 @@ import { Button } from "@/components/ui/button"
 import Image from "next/image"
 
 interface ImageUploadProps {
-  onFilesSelected: (files: File[]) => void
+  onImagesUploaded: (urls: string[]) => void
   maxImages?: number
   existingImages?: string[]
 }
 
-export default function ImageUpload({ onFilesSelected, maxImages = 5, existingImages = [] }: ImageUploadProps) {
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingImages = [] }: ImageUploadProps) {
   const [previewUrls, setPreviewUrls] = useState<string[]>(existingImages)
   const [dragActive, setDragActive] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFiles = (files: FileList) => {
     const fileArray = Array.from(files)
-    const remainingSlots = maxImages - (previewUrls.length + selectedFiles.length)
+    const remainingSlots = maxImages - previewUrls.length
 
     if (fileArray.length > remainingSlots) {
       alert(`Você pode adicionar no máximo ${remainingSlots} imagens`)
@@ -43,17 +42,26 @@ export default function ImageUpload({ onFilesSelected, maxImages = 5, existingIm
 
     if (validFiles.length === 0) return
 
-    // Criar previews
+    // Criar previews e converter para base64
+    const newUrls: string[] = []
+    let processedCount = 0
+
     validFiles.forEach((file) => {
       const reader = new FileReader()
       reader.onload = (e) => {
-        setPreviewUrls((prev) => [...prev, e.target?.result as string])
+        const dataUrl = e.target?.result as string
+        newUrls.push(dataUrl)
+        processedCount++
+
+        // Quando todos os arquivos forem processados
+        if (processedCount === validFiles.length) {
+          const updatedUrls = [...previewUrls, ...newUrls]
+          setPreviewUrls(updatedUrls)
+          onImagesUploaded(updatedUrls)
+        }
       }
       reader.readAsDataURL(file)
     })
-
-    setSelectedFiles((prev) => [...prev, ...validFiles])
-    onFilesSelected([...selectedFiles, ...validFiles])
   }
 
   const handleDrag = (e: React.DragEvent) => {
@@ -77,12 +85,9 @@ export default function ImageUpload({ onFilesSelected, maxImages = 5, existingIm
   }
 
   const removePreview = (index: number) => {
-    setPreviewUrls((prev) => prev.filter((_, i) => i !== index))
-    setSelectedFiles((prev) => {
-      const newFiles = prev.filter((_, i) => i !== index - existingImages.length)
-      onFilesSelected(newFiles)
-      return newFiles
-    })
+    const newUrls = previewUrls.filter((_, i) => i !== index)
+    setPreviewUrls(newUrls)
+    onImagesUploaded(newUrls)
   }
 
   return (
