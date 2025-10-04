@@ -12,6 +12,7 @@ import Link from "next/link"
 import AuthGuard from "@/components/auth/auth-guard"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
+import { migrateLocalStorageToSupabase } from "@/lib/migrate-to-supabase"
 
 function AdminPageContent() {
   const [allProducts, setAllProducts] = useState<Product[]>([])
@@ -51,6 +52,28 @@ function AdminPageContent() {
     if (confirm("Tem certeza que deseja sair?")) {
       logout()
       router.push("/admin/login")
+    }
+  }
+
+  const handleMigration = async () => {
+    if (!confirm("Deseja migrar os dados do localStorage para o Supabase? Esta ação só deve ser feita uma vez.")) {
+      return
+    }
+
+    setLoading(true)
+    try {
+      const result = await migrateLocalStorageToSupabase()
+      if (result.success) {
+        alert("Migração concluída com sucesso!")
+        loadProducts()
+      } else {
+        alert(`Erro na migração: ${result.error}`)
+      }
+    } catch (error) {
+      alert("Erro ao migrar dados")
+      console.error(error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -95,6 +118,36 @@ function AdminPageContent() {
             </Button>
           </div>
         </div>
+
+        {/* Migration Card - Mostrar apenas se houver dados no localStorage */}
+        {typeof window !== "undefined" && localStorage.getItem("atelier-products") && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="mb-8"
+          >
+            <Card className="border-yellow-200 bg-yellow-50">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">📦 Migração de Dados Detectada</h3>
+                    <p className="text-gray-600 text-sm">
+                      Encontramos dados salvos localmente. Clique no botão para migrar para o Supabase.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleMigration}
+                    disabled={loading}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white"
+                  >
+                    Migrar Dados
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
