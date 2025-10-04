@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { AuthService } from "@/lib/auth"
+import { AuthServiceSupabase } from "@/lib/auth"
 import LoginForm from "@/components/auth/login-form"
 
 export default function LoginPage() {
@@ -10,9 +10,14 @@ export default function LoginPage() {
 
   useEffect(() => {
     // Se já estiver logado, redirecionar para admin
-    if (AuthService.isAuthenticated()) {
-      router.push("/admin")
+    const checkAuth = async () => {
+      const isAuth = await AuthServiceSupabase.isAuthenticated()
+      if (isAuth) {
+        router.push("/admin")
+      }
     }
+
+    checkAuth()
   }, [router])
 
   return <LoginForm />
