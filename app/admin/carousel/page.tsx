@@ -2,35 +2,32 @@
 
 import type React from "react"
 import AuthGuard from "@/components/auth/auth-guard"
-
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { ArrowLeft, Save, GripVertical, X, Eye } from "lucide-react"
+import { ArrowLeft, Save, GripVertical, X, Eye, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
-import { products } from "@/data/products"
-import type { Product } from "@/data/products"
+import { useProducts } from "@/hooks/use-products"
 import Image from "next/image"
 
 const CarouselManagementPageContent: React.FC = () => {
+  const { products, loading } = useProducts()
   const [selectedProducts, setSelectedProducts] = useState<number[]>([])
-  const [availableProducts, setAvailableProducts] = useState<Product[]>([])
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    // Carregar produtos disponíveis
-    setAvailableProducts(products)
-
-    // Carregar configuração atual do carrossel
+    // Carregar configuração atual do carrossel do localStorage
     const savedCarousel = localStorage.getItem("carousel-products")
     if (savedCarousel) {
-      setSelectedProducts(JSON.parse(savedCarousel))
-    } else {
-      // IDs padrão do carrossel
-      setSelectedProducts([1, 2, 3, 4, 5])
+      try {
+        setSelectedProducts(JSON.parse(savedCarousel))
+      } catch (error) {
+        console.error("Error loading carousel:", error)
+        setSelectedProducts([])
+      }
     }
   }, [])
 
@@ -62,10 +59,7 @@ const CarouselManagementPageContent: React.FC = () => {
     const newOrder = [...selectedProducts]
     const draggedId = newOrder[draggedIndex]
 
-    // Remove o item da posição original
     newOrder.splice(draggedIndex, 1)
-
-    // Insere na nova posição
     newOrder.splice(dropIndex, 0, draggedId)
 
     setSelectedProducts(newOrder)
@@ -77,7 +71,7 @@ const CarouselManagementPageContent: React.FC = () => {
   }
 
   const saveCarouselConfig = async () => {
-    setLoading(true)
+    setSaving(true)
     try {
       localStorage.setItem("carousel-products", JSON.stringify(selectedProducts))
       alert("Configuração do carrossel salva com sucesso!")
@@ -85,16 +79,26 @@ const CarouselManagementPageContent: React.FC = () => {
       console.error("Error saving carousel config:", error)
       alert("Erro ao salvar configuração")
     } finally {
-      setLoading(false)
+      setSaving(false)
     }
   }
 
-  const getProductById = (id: number) => availableProducts.find((p) => p.id === id)
+  const getProductById = (id: number) => products.find((p) => p.id === id)
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex items-center justify-center pt-24">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando produtos...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 pt-24">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <Button asChild variant="ghost">
@@ -109,14 +113,22 @@ const CarouselManagementPageContent: React.FC = () => {
             </div>
           </div>
 
-          <Button onClick={saveCarouselConfig} disabled={loading} className="bg-pink-500 hover:bg-pink-600">
-            <Save className="h-4 w-4 mr-2" />
-            {loading ? "Salvando..." : "Salvar Configuração"}
+          <Button onClick={saveCarouselConfig} disabled={saving} className="bg-pink-500 hover:bg-pink-600">
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Salvar
+              </>
+            )}
           </Button>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
-          {/* Produtos Selecionados para o Carrossel */}
           <Card>
             <CardHeader>
               <CardTitle>Produtos no Carrossel ({selectedProducts.length}/8)</CardTitle>
@@ -144,20 +156,17 @@ const CarouselManagementPageContent: React.FC = () => {
                         className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm border-2 border-dashed border-gray-200 hover:border-pink-300 cursor-move group"
                         whileHover={{ scale: 1.02 }}
                       >
-                        {/* Drag Handle */}
                         <div className="text-gray-400 group-hover:text-pink-500">
                           <GripVertical className="h-5 w-5" />
                         </div>
 
-                        {/* Position */}
                         <div className="flex-shrink-0 w-8 h-8 bg-pink-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
                           {index + 1}
                         </div>
 
-                        {/* Product Image */}
-                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
+                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                           <Image
-                            src={product.images[0] || "/placeholder.svg"}
+                            src={product.images[0]?.image_url || "/placeholder.svg"}
                             alt={product.name}
                             width={64}
                             height={64}
@@ -165,15 +174,13 @@ const CarouselManagementPageContent: React.FC = () => {
                           />
                         </div>
 
-                        {/* Product Info */}
                         <div className="flex-1 min-w-0">
                           <h3 className="font-medium text-gray-800 truncate">{product.name}</h3>
                           <p className="text-sm text-gray-500 truncate">{product.description}</p>
                           <p className="text-sm font-bold text-yellow-600">{product.price}</p>
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-shrink-0">
                           <Button variant="outline" size="sm" asChild className="bg-transparent">
                             <Link href={`/catalogo/${product.id}`}>
                               <Eye className="h-4 w-4" />
@@ -191,15 +198,14 @@ const CarouselManagementPageContent: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Lista de Todos os Produtos */}
           <Card>
             <CardHeader>
               <CardTitle>Todos os Produtos</CardTitle>
               <p className="text-sm text-gray-600">Selecione produtos para adicionar ao carrossel</p>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {availableProducts.map((product) => (
+              <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                {products.map((product) => (
                   <div
                     key={product.id}
                     className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
@@ -210,9 +216,9 @@ const CarouselManagementPageContent: React.FC = () => {
                       disabled={!selectedProducts.includes(product.id) && selectedProducts.length >= 8}
                     />
 
-                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200">
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
                       <Image
-                        src={product.images[0] || "/placeholder.svg"}
+                        src={product.images[0]?.image_url || "/placeholder.svg"}
                         alt={product.name}
                         width={48}
                         height={48}
@@ -231,7 +237,7 @@ const CarouselManagementPageContent: React.FC = () => {
                       </div>
                     </div>
 
-                    <Button variant="outline" size="sm" asChild className="bg-transparent">
+                    <Button variant="outline" size="sm" asChild className="bg-transparent flex-shrink-0">
                       <Link href={`/catalogo/${product.id}`}>
                         <Eye className="h-4 w-4" />
                       </Link>
@@ -243,7 +249,6 @@ const CarouselManagementPageContent: React.FC = () => {
           </Card>
         </div>
 
-        {/* Preview */}
         <Card className="mt-8">
           <CardHeader>
             <CardTitle>Preview do Carrossel</CardTitle>
@@ -258,7 +263,7 @@ const CarouselManagementPageContent: React.FC = () => {
                   <div key={productId} className="bg-white rounded-lg shadow-sm overflow-hidden">
                     <div className="aspect-square relative">
                       <Image
-                        src={product.images[0] || "/placeholder.svg"}
+                        src={product.images[0]?.image_url || "/placeholder.svg"}
                         alt={product.name}
                         width={200}
                         height={200}

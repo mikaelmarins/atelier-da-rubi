@@ -3,22 +3,24 @@
 import type React from "react"
 import { useState, useRef } from "react"
 import { motion } from "framer-motion"
-import { Upload, X } from "lucide-react"
+import { Upload, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 
 interface ImageUploadProps {
-  onImagesUploaded: (urls: string[]) => void
+  onImagesChange: (files: File[]) => void
   maxImages?: number
   existingImages?: string[]
 }
 
-export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingImages = [] }: ImageUploadProps) {
+export default function ImageUpload({ onImagesChange, maxImages = 5, existingImages = [] }: ImageUploadProps) {
   const [previewUrls, setPreviewUrls] = useState<string[]>(existingImages)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [dragActive, setDragActive] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleFiles = (files: FileList) => {
+  const handleFiles = async (files: FileList) => {
     const fileArray = Array.from(files)
     const remainingSlots = maxImages - previewUrls.length
 
@@ -42,26 +44,19 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
 
     if (validFiles.length === 0) return
 
-    // Criar previews e converter para base64
-    const newUrls: string[] = []
-    let processedCount = 0
+    // Criar previews
+    const newPreviews: string[] = []
+    for (const file of validFiles) {
+      const url = URL.createObjectURL(file)
+      newPreviews.push(url)
+    }
 
-    validFiles.forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string
-        newUrls.push(dataUrl)
-        processedCount++
+    const updatedPreviews = [...previewUrls, ...newPreviews]
+    const updatedFiles = [...selectedFiles, ...validFiles]
 
-        // Quando todos os arquivos forem processados
-        if (processedCount === validFiles.length) {
-          const updatedUrls = [...previewUrls, ...newUrls]
-          setPreviewUrls(updatedUrls)
-          onImagesUploaded(updatedUrls)
-        }
-      }
-      reader.readAsDataURL(file)
-    })
+    setPreviewUrls(updatedPreviews)
+    setSelectedFiles(updatedFiles)
+    onImagesChange(updatedFiles)
   }
 
   const handleDrag = (e: React.DragEvent) => {
@@ -85,9 +80,23 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
   }
 
   const removePreview = (index: number) => {
-    const newUrls = previewUrls.filter((_, i) => i !== index)
-    setPreviewUrls(newUrls)
-    onImagesUploaded(newUrls)
+    // Calcular o índice correto considerando imagens existentes
+    const isExisting = index < existingImages.length
+
+    if (isExisting) {
+      // Remover de existentes
+      const newExisting = existingImages.filter((_, i) => i !== index)
+      setPreviewUrls([...newExisting, ...previewUrls.slice(existingImages.length)])
+    } else {
+      // Remover de novos arquivos
+      const fileIndex = index - existingImages.length
+      const newFiles = selectedFiles.filter((_, i) => i !== fileIndex)
+      const newPreviews = previewUrls.filter((_, i) => i !== index)
+
+      setSelectedFiles(newFiles)
+      setPreviewUrls(newPreviews)
+      onImagesChange(newFiles)
+    }
   }
 
   return (
@@ -108,13 +117,19 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
           accept="image/*"
           onChange={(e) => e.target.files && handleFiles(e.target.files)}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          disabled={previewUrls.length >= maxImages}
+          disabled={previewUrls.length >= maxImages || uploading}
         />
 
         <div className="space-y-2">
-          <Upload className="h-8 w-8 mx-auto text-gray-400" />
+          {uploading ? (
+            <Loader2 className="h-8 w-8 mx-auto text-pink-500 animate-spin" />
+          ) : (
+            <Upload className="h-8 w-8 mx-auto text-gray-400" />
+          )}
           <div>
-            <p className="text-sm font-medium text-gray-700">Clique ou arraste imagens aqui</p>
+            <p className="text-sm font-medium text-gray-700">
+              {uploading ? "Fazendo upload..." : "Clique ou arraste imagens aqui"}
+            </p>
             <p className="text-xs text-gray-500">
               PNG, JPG, WebP até 5MB ({previewUrls.length}/{maxImages})
             </p>
@@ -140,6 +155,7 @@ export default function ImageUpload({ onImagesUploaded, maxImages = 5, existingI
                   className="opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={() => removePreview(index)}
                   type="button"
+                  disabled={uploading}
                 >
                   <X className="h-4 w-4" />
                 </Button>

@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { ArrowLeft, Save, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -14,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import ImageUpload from "@/components/admin/image-upload"
-import type { CreateProductData } from "@/lib/product-service"
+import { ProductServiceSupabase } from "@/lib/product-service"
 import AuthGuard from "@/components/auth/auth-guard"
 
 const categories = [
@@ -33,8 +32,8 @@ const tamanhos = ["RN", "P", "M", "G", "1 ano", "2 anos", "Berço Padrão", "Min
 function NewProductPageContent() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [images, setImages] = useState<string[]>([])
-  const [formData, setFormData] = useState<CreateProductData>({
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [formData, setFormData] = useState({
     name: "",
     description: "",
     price: "",
@@ -42,7 +41,7 @@ function NewProductPageContent() {
     featured: false,
     details: {
       material: "",
-      tamanhos: [],
+      tamanhos: [] as string[],
       cuidados: "",
       tempo_producao: "",
     },
@@ -51,7 +50,7 @@ function NewProductPageContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (images.length === 0) {
+    if (imageFiles.length === 0) {
       alert("Adicione pelo menos uma imagem do produto")
       return
     }
@@ -64,25 +63,17 @@ function NewProductPageContent() {
     setLoading(true)
 
     try {
-      const productData = {
-        ...formData,
-        images,
+      const product = await ProductServiceSupabase.createProduct(formData, imageFiles)
+
+      if (product) {
+        alert("Produto criado com sucesso!")
+        router.push("/admin/products")
+      } else {
+        alert("Erro ao criar produto")
       }
-
-      const newProduct = {
-        id: Date.now(),
-        ...productData,
-      }
-
-      const existingProducts = JSON.parse(localStorage.getItem("atelier-products") || "[]")
-      existingProducts.push(newProduct)
-      localStorage.setItem("atelier-products", JSON.stringify(existingProducts))
-
-      alert("Produto criado com sucesso!")
-      router.push("/admin")
     } catch (error) {
       console.error("Error creating product:", error)
-      alert("Erro ao criar produto")
+      alert("Erro ao criar produto: " + (error instanceof Error ? error.message : "Erro desconhecido"))
     } finally {
       setLoading(false)
     }
@@ -118,10 +109,9 @@ function NewProductPageContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 pt-24">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <Button asChild variant="ghost">
-            <Link href="/admin">
+            <Link href="/admin/products">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar
             </Link>
@@ -133,17 +123,15 @@ function NewProductPageContent() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Imagens */}
           <Card>
             <CardHeader>
               <CardTitle>Imagens do Produto</CardTitle>
             </CardHeader>
             <CardContent>
-              <ImageUpload onImagesUploaded={setImages} maxImages={5} existingImages={images} />
+              <ImageUpload onImagesChange={setImageFiles} maxImages={5} existingImages={[]} />
             </CardContent>
           </Card>
 
-          {/* Informações Básicas */}
           <Card>
             <CardHeader>
               <CardTitle>Informações Básicas</CardTitle>
@@ -212,7 +200,6 @@ function NewProductPageContent() {
             </CardContent>
           </Card>
 
-          {/* Detalhes do Produto */}
           <Card>
             <CardHeader>
               <CardTitle>Detalhes do Produto</CardTitle>
@@ -271,10 +258,9 @@ function NewProductPageContent() {
             </CardContent>
           </Card>
 
-          {/* Botões de Ação */}
           <div className="flex gap-4 justify-end">
-            <Button type="button" variant="outline" asChild>
-              <Link href="/admin">Cancelar</Link>
+            <Button type="button" variant="outline" asChild disabled={loading}>
+              <Link href="/admin/products">Cancelar</Link>
             </Button>
             <Button type="submit" disabled={loading} className="bg-pink-500 hover:bg-pink-600">
               {loading ? (
