@@ -9,17 +9,15 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import Link from "next/link"
 import Image from "next/image"
-import { useProduct } from "@/hooks/use-products"
-import { ProductService } from "@/lib/product-service"
-import { useRouter } from "next/navigation"
+import { useProduct, useProducts } from "@/hooks/use-products"
 
 type Props = {
   productId: number
 }
 
 export default function ProductDetail({ productId }: Props) {
-  const router = useRouter()
   const { product, loading } = useProduct(productId)
+  const { products } = useProducts()
   const [selectedImage, setSelectedImage] = useState(0)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isZoomed, setIsZoomed] = useState(false)
@@ -31,13 +29,11 @@ export default function ProductDetail({ productId }: Props) {
   }, [productId])
 
   useEffect(() => {
-    if (product) {
-      const related = ProductService.getProductsByCategory(product.category)
-        .filter((p) => p.id !== productId)
-        .slice(0, 3)
+    if (product && products.length > 0) {
+      const related = products.filter((p) => p.category === product.category && p.id !== productId).slice(0, 3)
       setRelatedProducts(related)
     }
-  }, [product, productId])
+  }, [product, products, productId])
 
   if (loading) {
     return (
@@ -119,7 +115,7 @@ export default function ProductDetail({ productId }: Props) {
                 onMouseLeave={() => setIsZoomed(false)}
               >
                 <Image
-                  src={product.images[selectedImage] || "/placeholder.svg"}
+                  src={product.images[selectedImage]?.image_url || "/placeholder.svg"}
                   alt={`${product.name} - Imagem ${selectedImage + 1}`}
                   width={600}
                   height={600}
@@ -186,7 +182,7 @@ export default function ProductDetail({ productId }: Props) {
                     onClick={() => setSelectedImage(index)}
                   >
                     <Image
-                      src={image || "/placeholder.svg"}
+                      src={image.image_url || "/placeholder.svg"}
                       alt={`${product.name} - Miniatura ${index + 1}`}
                       width={80}
                       height={80}
@@ -227,7 +223,7 @@ export default function ProductDetail({ productId }: Props) {
                 • <strong>Todo o Brasil:</strong> Frete calculado no WhatsApp
               </li>
               <li>
-                • <strong>Prazo:</strong> {product.details.tempo_producao}
+                • <strong>Prazo:</strong> {product.tempo_producao}
               </li>
             </ul>
           </div>
@@ -260,15 +256,15 @@ export default function ProductDetail({ productId }: Props) {
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <span className="font-medium text-gray-700">Material:</span>
-                <p className="text-gray-600 text-sm sm:text-base">{product.details.material}</p>
+                <p className="text-gray-600 text-sm sm:text-base">{product.material}</p>
               </div>
               <div>
                 <span className="font-medium text-gray-700">Cuidados:</span>
-                <p className="text-gray-600 text-sm sm:text-base">{product.details.cuidados}</p>
+                <p className="text-gray-600 text-sm sm:text-base">{product.cuidados}</p>
               </div>
               <div>
                 <span className="font-medium text-gray-700">Tempo de Produção:</span>
-                <p className="text-gray-600 text-sm sm:text-base">{product.details.tempo_producao}</p>
+                <p className="text-gray-600 text-sm sm:text-base">{product.tempo_producao}</p>
               </div>
             </div>
           </div>
@@ -290,7 +286,7 @@ export default function ProductDetail({ productId }: Props) {
                 <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group">
                   <div className="aspect-square relative overflow-hidden">
                     <Image
-                      src={relatedProduct.images[0] || "/placeholder.svg"}
+                      src={relatedProduct.images[0]?.image_url || "/placeholder.svg"}
                       alt={relatedProduct.name}
                       width={300}
                       height={300}
@@ -323,7 +319,7 @@ export default function ProductDetail({ productId }: Props) {
 
             <div className="aspect-square max-h-[90vh]">
               <Image
-                src={product.images[selectedImage] || "/placeholder.svg"}
+                src={product.images[selectedImage]?.image_url || "/placeholder.svg"}
                 alt={`${product.name} - Imagem ampliada`}
                 width={1200}
                 height={1200}

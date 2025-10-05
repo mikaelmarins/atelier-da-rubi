@@ -6,33 +6,35 @@ import { ChevronLeft, ChevronRight, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import Image from "next/image"
-import { products } from "@/data/products"
+import { useProducts } from "@/hooks/use-products"
 
 export default function FeaturedCarousel() {
+  const { products } = useProducts()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isHovered, setIsHovered] = useState(false)
   const [itemsPerView, setItemsPerView] = useState(3)
   const [featuredProductIds, setFeaturedProductIds] = useState<number[]>([])
-  const [allProducts, setAllProducts] = useState(products)
 
   useEffect(() => {
-    const savedProducts = localStorage.getItem("atelier-products")
-    if (savedProducts) {
-      const parsed = JSON.parse(savedProducts)
-      if (parsed.length > 0) {
-        setAllProducts(parsed)
-      }
-    }
-
+    // Carregar IDs do carrossel do localStorage
     const savedCarousel = localStorage.getItem("carousel-products")
     if (savedCarousel) {
-      setFeaturedProductIds(JSON.parse(savedCarousel))
+      try {
+        setFeaturedProductIds(JSON.parse(savedCarousel))
+      } catch (error) {
+        console.error("Error loading carousel:", error)
+        // Fallback para produtos em destaque
+        setFeaturedProductIds(products.filter((p) => p.featured).map((p) => p.id))
+      }
     } else {
-      setFeaturedProductIds([1, 2, 3, 4, 5])
+      // Fallback para produtos em destaque
+      setFeaturedProductIds(products.filter((p) => p.featured).map((p) => p.id))
     }
-  }, [])
+  }, [products])
 
-  const featuredItems = featuredProductIds.map((id) => allProducts.find((product) => product.id === id)).filter(Boolean)
+  const featuredItems = featuredProductIds
+    .map((id) => products.find((product) => product.id === id))
+    .filter((item): item is NonNullable<typeof item> => item !== undefined)
 
   useEffect(() => {
     const updateItemsPerView = () => {
@@ -116,7 +118,7 @@ export default function FeaturedCarousel() {
                 width: `${(featuredItems.length / itemsPerView) * 100}%`,
               }}
             >
-              {featuredItems.map((item, index) => (
+              {featuredItems.map((item) => (
                 <motion.div
                   key={item.id}
                   className="group"
@@ -131,7 +133,7 @@ export default function FeaturedCarousel() {
                     <div className="relative overflow-hidden">
                       <div className="aspect-square">
                         <Image
-                          src={item.images[0] || "/placeholder.svg"}
+                          src={item.images[0]?.image_url || "/placeholder.svg"}
                           alt={item.name}
                           width={400}
                           height={400}
@@ -190,7 +192,7 @@ export default function FeaturedCarousel() {
                 >
                   <div className="aspect-square relative">
                     <Image
-                      src={featuredItems[currentIndex].images[0] || "/placeholder.svg"}
+                      src={featuredItems[currentIndex].images[0]?.image_url || "/placeholder.svg"}
                       alt={featuredItems[currentIndex].name}
                       width={400}
                       height={400}
