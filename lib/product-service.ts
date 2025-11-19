@@ -13,6 +13,8 @@ export class ProductServiceSupabase {
   // Criar produto
   static async createProduct(data: ProductInsert, imageFiles: File[]): Promise<ProductWithImages | null> {
     try {
+      console.log("[v0] Creating product with data:", data)
+      
       // 1. Criar produto
       const { data: product, error: productError } = await supabase
         .from("products")
@@ -22,18 +24,20 @@ export class ProductServiceSupabase {
           price: data.price,
           category: data.category,
           featured: data.featured || false,
-          material: data.details?.material || "",
-          tamanhos: data.details?.tamanhos || [],
-          cuidados: data.details?.cuidados || "",
-          tempo_producao: data.details?.tempo_producao || "",
+          material: data.material || "",
+          tamanhos: data.tamanhos || [],
+          cuidados: data.cuidados || "",
+          tempo_producao: data.tempo_producao || "",
         })
         .select()
         .single()
 
       if (productError || !product) {
-        console.error("Error creating product:", productError)
+        console.error("[v0] Error creating product:", productError)
         throw new Error("Falha ao criar produto")
       }
+
+      console.log("[v0] Product created successfully:", product.id)
 
       // 2. Upload de imagens
       const imageUrls: { url: string; order: number }[] = []
@@ -79,7 +83,7 @@ export class ProductServiceSupabase {
       // 4. Buscar produto completo com imagens
       return await this.getProductById(product.id)
     } catch (error) {
-      console.error("Error in createProduct:", error)
+      console.error("[v0] Error in createProduct:", error)
       throw error
     }
   }
@@ -87,6 +91,8 @@ export class ProductServiceSupabase {
   // Buscar todos os produtos
   static async getAllProducts(): Promise<ProductWithImages[]> {
     try {
+      console.log("[v0] Fetching all products...")
+      
       const { data: products, error } = await supabase
         .from("products")
         .select(`
@@ -96,14 +102,15 @@ export class ProductServiceSupabase {
         .order("created_at", { ascending: false })
 
       if (error) {
-        console.error("Error fetching products:", error)
-        return []
+        console.error("[v0] Error fetching products:", error)
+        throw error
       }
 
+      console.log("[v0] Products fetched successfully:", products?.length || 0)
       return (products as any) || []
     } catch (error) {
-      console.error("Error in getAllProducts:", error)
-      return []
+      console.error("[v0] Error in getAllProducts:", error)
+      throw error
     }
   }
 
