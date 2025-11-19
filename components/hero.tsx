@@ -1,10 +1,10 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Sparkles } from "lucide-react"
+import { Sparkles } from 'lucide-react'
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { Heart } from "lucide-react"
+import { Heart } from 'lucide-react'
 import { useState, useEffect } from "react"
 
 interface HeartPosition {
@@ -29,7 +29,7 @@ export default function Hero() {
   }, [])
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-white">
       {/* Animated Background Elements */}
       <div className="absolute inset-0">
         <motion.div
