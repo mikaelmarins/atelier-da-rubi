@@ -1,11 +1,13 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter, Dancing_Script } from "next/font/google"
+import { Inter, Dancing_Script } from 'next/font/google'
 import "./globals.css"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 import Analytics from "@/components/analytics"
 import { Suspense } from "react"
+import { CartProvider } from "@/context/cart-context"
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -113,10 +115,13 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} ${dancing.variable} font-sans antialiased`}>
         <Suspense fallback={null}>
-          <Analytics />
-          <Header />
-          {children}
-          <Footer />
+          <CartProvider>
+            <Analytics />
+            <Header />
+            {children}
+            <Footer />
+            <Toaster />
+          </CartProvider>
         </Suspense>
       </body>
     </html>
