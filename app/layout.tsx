@@ -1,6 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter, Dancing_Script } from 'next/font/google'
+import { Inter, Dancing_Script, Playfair_Display } from 'next/font/google'
 import "./globals.css"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
@@ -19,6 +19,13 @@ const inter = Inter({
 const dancing = Dancing_Script({
   subsets: ["latin"],
   variable: "--font-dancing",
+  display: "swap",
+  preload: true,
+})
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-playfair",
   display: "swap",
   preload: true,
 })
@@ -45,7 +52,7 @@ export const metadata: Metadata = {
     "Rubiana Lima",
     "atelier bordado",
   ],
-  authors: [{ name: "Rubiana Lima", url: "https://instagram.com/atelierdarubi" }],
+  authors: [{ name: "Rubiana Lima", url: "https://instagram.com/atelier.da.rubi" }],
   creator: "Atelier da Rubi",
   publisher: "Atelier da Rubi",
   formatDetection: {
@@ -96,7 +103,7 @@ export const metadata: Metadata = {
   verification: {
     google: "ADICIONAR_CODIGO_GOOGLE_SEARCH_CONSOLE",
   },
-    generator: 'v0.app'
+  generator: 'v0.app'
 }
 
 export default function RootLayout({
@@ -113,7 +120,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://www.facebook.com" />
         <link rel="canonical" href={process.env.NEXT_PUBLIC_SITE_URL} />
       </head>
-      <body className={`${inter.variable} ${dancing.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${dancing.variable} ${playfair.variable} font-sans antialiased`}>
         <Suspense fallback={null}>
           <CartProvider>
             <Analytics />

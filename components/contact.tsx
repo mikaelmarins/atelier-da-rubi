@@ -5,7 +5,7 @@ import { MapPin, Phone, Instagram, Clock, Truck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function Contact() {
-  const whatsappNumber = "5522999999999" // Substitua pelo número real
+  const whatsappNumber = "5522997890934" // Substitua pelo número real
   const whatsappMessage = "Olá! Gostaria de saber mais sobre os bordados do Atelier da Rubi."
 
   return (
@@ -96,7 +96,7 @@ export default function Contact() {
               <div>
                 <h3 className="font-semibold text-gray-800 mb-2">Instagram</h3>
                 <p className="text-gray-600">
-                  @atelierdarubi
+                  @atelier.da.rubi
                   <br />
                   Acompanhe nossos trabalhos
                 </p>
@@ -141,9 +141,9 @@ export default function Contact() {
                   variant="outline"
                   className="mt-2 border-pink-300 text-pink-600 hover:bg-pink-50 bg-transparent"
                 >
-                  <a href="https://instagram.com/atelierdarubi" target="_blank" rel="noopener noreferrer">
+                  <a href="https://instagram.com/atelier.da.rubi" target="_blank" rel="noopener noreferrer">
                     <Instagram className="h-4 w-4 mr-2" />
-                    @atelierdarubi
+                    @atelier.da.rubi
                   </a>
                 </Button>
               </div>

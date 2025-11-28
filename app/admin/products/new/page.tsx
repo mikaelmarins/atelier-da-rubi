@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ArrowLeft, Save, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,42 +10,52 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import ImageUpload from "@/components/admin/image-upload"
 import { ProductServiceSupabase } from "@/lib/product-service"
 import AuthGuard from "@/components/auth/auth-guard"
+import { supabase } from "@/lib/supabase"
+import DetailsEditor from "@/components/admin/details-editor"
 
-const categories = [
-  { value: "jogos-berco", label: "Jogos de Berço" },
-  { value: "toalhas", label: "Toalhas RN" },
-  { value: "kit-gestante", label: "Kits Gestante" },
-  { value: "vestidos", label: "Vestidos" },
-  { value: "bodies", label: "Bodies" },
-  { value: "macacoes", label: "Macacões" },
-  { value: "blusas", label: "Blusas" },
-  { value: "conjuntos", label: "Conjuntos" },
-]
+type Category = { id: number; name: string }
 
 const tamanhos = ["RN", "P", "M", "G", "1 ano", "2 anos", "Berço Padrão", "Mini Berço", "Único"]
 
 function NewProductPageContent() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([])
   const [imageFiles, setImageFiles] = useState<File[]>([])
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     price: "",
     category: "",
+    category_id: null as number | null,
     featured: false,
     details: {
       material: "",
       tamanhos: [] as string[],
       cuidados: "",
       tempo_producao: "",
-    },
+    } as Record<string, any>,
+    weight: "",
+    height: "",
+    width: "",
+    length: "",
+    is_customizable: false,
   })
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      const { data } = await supabase.from("categories").select("id, name").order("name")
+      if (data) setCategories(data)
+    }
+    loadCategories()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,7 +65,7 @@ function NewProductPageContent() {
       return
     }
 
-    if (!formData.name || !formData.description || !formData.price || !formData.category) {
+    if (!formData.name || !formData.description || !formData.price || !formData.category_id) {
       alert("Preencha todos os campos obrigatórios")
       return
     }
@@ -86,6 +96,16 @@ function NewProductPageContent() {
     }))
   }
 
+  const handleCategoryChange = (value: string) => {
+    const categoryId = Number(value)
+    const category = categories.find(c => c.id === categoryId)
+    setFormData(prev => ({
+      ...prev,
+      category_id: categoryId,
+      category: category?.name || ""
+    }))
+  }
+
   const handleDetailsChange = (field: string, value: any) => {
     setFormData((prev) => ({
       ...prev,
@@ -101,9 +121,26 @@ function NewProductPageContent() {
       ...prev,
       details: {
         ...prev.details,
-        tamanhos: checked ? [...prev.details.tamanhos, tamanho] : prev.details.tamanhos.filter((t) => t !== tamanho),
+        tamanhos: checked
+          ? [...(prev.details.tamanhos || []), tamanho]
+          : (prev.details.tamanhos || []).filter((t: string) => t !== tamanho),
       },
     }))
+  }
+
+  const handleDynamicDetailsChange = (newDetails: Record<string, any>) => {
+    setFormData(prev => ({
+      ...prev,
+      details: {
+        ...prev.details,
+        ...newDetails
+      }
+    }))
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   return (
@@ -163,14 +200,17 @@ function NewProductPageContent() {
 
               <div className="space-y-2">
                 <Label htmlFor="category">Categoria *</Label>
-                <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)}>
+                <Select
+                  value={formData.category_id?.toString() || ""}
+                  onValueChange={handleCategoryChange}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione uma categoria" />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
-                      <SelectItem key={category.value} value={category.value}>
-                        {category.label}
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -189,13 +229,66 @@ function NewProductPageContent() {
                 />
               </div>
 
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="weight">Peso (kg)</Label>
+                  <Input
+                    id="weight"
+                    name="weight"
+                    type="number"
+                    step="0.001"
+                    value={formData.weight}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="height">Altura (cm)</Label>
+                  <Input
+                    id="height"
+                    name="height"
+                    type="number"
+                    value={formData.height}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="width">Largura (cm)</Label>
+                  <Input
+                    id="width"
+                    name="width"
+                    type="number"
+                    value={formData.width}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="length">Comprimento (cm)</Label>
+                  <Input
+                    id="length"
+                    name="length"
+                    type="number"
+                    value={formData.length}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+
               <div className="flex items-center space-x-2">
-                <Checkbox
+                <Switch
+                  id="is_customizable"
+                  checked={formData.is_customizable}
+                  onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, is_customizable: checked }))}
+                />
+                <Label htmlFor="is_customizable">Produto Personalizável (Ex: Nome bordado)</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
                   id="featured"
                   checked={formData.featured}
-                  onCheckedChange={(checked) => handleInputChange("featured", checked)}
+                  onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, featured: checked }))}
                 />
-                <Label htmlFor="featured">Produto em destaque</Label>
+                <Label htmlFor="featured">Destaque na Home</Label>
               </div>
             </CardContent>
           </Card>
@@ -234,7 +327,7 @@ function NewProductPageContent() {
                     <div key={tamanho} className="flex items-center space-x-2">
                       <Checkbox
                         id={tamanho}
-                        checked={formData.details.tamanhos.includes(tamanho)}
+                        checked={(formData.details.tamanhos || []).includes(tamanho)}
                         onCheckedChange={(checked) => handleTamanhosChange(tamanho, checked as boolean)}
                       />
                       <Label htmlFor={tamanho} className="text-sm">
@@ -253,6 +346,18 @@ function NewProductPageContent() {
                   onChange={(e) => handleDetailsChange("cuidados", e.target.value)}
                   placeholder="Ex: Lavar à mão com água fria, secar à sombra"
                   rows={3}
+                />
+              </div>
+
+              {/* Dynamic Details Editor */}
+              <div className="pt-4 border-t">
+                <DetailsEditor
+                  value={Object.fromEntries(
+                    Object.entries(formData.details).filter(([key]) =>
+                      !['material', 'tamanhos', 'cuidados', 'tempo_producao'].includes(key)
+                    )
+                  )}
+                  onChange={handleDynamicDetailsChange}
                 />
               </div>
             </CardContent>

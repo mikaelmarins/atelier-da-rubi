@@ -1,4 +1,5 @@
 import { Heart, Instagram, Phone, MapPin, Truck } from "lucide-react"
+import Image from "next/image"
 
 export default function Footer() {
   return (
@@ -10,7 +11,14 @@ export default function Footer() {
             {/* Logo e Descrição */}
             <div className="space-y-4">
               <div className="flex items-center justify-center space-x-2">
-                <Heart className="h-6 w-6 text-pink-400" />
+                <div className="relative h-10 w-10">
+                  <Image
+                    src="/logo.png"
+                    alt="Logo Atelier da Rubi"
+                    fill
+                    className="object-contain"
+                  />
+                </div>
                 <span className="text-xl font-dancing font-bold">Atelier da Rubi</span>
               </div>
               <p className="text-gray-300 text-sm leading-relaxed max-w-xs mx-auto">
@@ -54,7 +62,7 @@ export default function Footer() {
                   <Instagram className="h-6 w-6" />
                 </a>
                 <a
-                  href="https://wa.me/5522999999999"
+                  href="https://wa.me/55997890934"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-300 hover:text-green-400 transition-colors"
@@ -65,12 +73,12 @@ export default function Footer() {
               </div>
               <div className="text-center">
                 <a
-                  href="https://instagram.com/atelierdarubi"
+                  href="https://instagram.com/atelier.da.rubi"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-300 hover:text-pink-400 transition-colors text-sm"
                 >
-                  @atelierdarubi
+                  @atelier.da.rubi
                 </a>
               </div>
             </div>
@@ -81,7 +89,14 @@ export default function Footer() {
         <div className="hidden md:flex justify-center items-start gap-12 lg:gap-24 xl:gap-32">
           <div className="flex flex-col items-center space-y-6">
             <div className="flex items-center space-x-2">
-              <Heart className="h-6 w-6 text-pink-400" />
+              <div className="relative h-12 w-12">
+                <Image
+                  src="/logo.png"
+                  alt="Logo Atelier da Rubi"
+                  fill
+                  className="object-contain"
+                />
+              </div>
               <span className="text-xl font-dancing font-bold">Atelier da Rubi</span>
             </div>
             <p className="text-gray-300 text-sm sm:text-base leading-relaxed text-center max-w-xs">
@@ -89,7 +104,7 @@ export default function Footer() {
             </p>
             <div className="flex space-x-6">
               <a
-                href="https://instagram.com/atelierdarubi"
+                href="https://instagram.com/atelier.da.rubi"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-300 hover:text-pink-400 transition-colors"
@@ -98,7 +113,7 @@ export default function Footer() {
                 <Instagram className="h-6 w-6" />
               </a>
               <a
-                href="https://wa.me/5522999999999"
+                href="https://wa.me/55997890934"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-300 hover:text-green-400 transition-colors"
@@ -131,12 +146,12 @@ export default function Footer() {
               <div className="flex items-center space-x-3">
                 <Instagram className="h-5 w-5 text-pink-400 flex-shrink-0" />
                 <a
-                  href="https://instagram.com/atelierdarubi"
+                  href="https://instagram.com/atelier.da.rubi"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-300 hover:text-pink-400 transition-colors"
                 >
-                  @atelierdarubi
+                  @atelier.da.rubi
                 </a>
               </div>
             </div>

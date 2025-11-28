@@ -12,142 +12,135 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
-import type { Product } from "@/data/products"
 import Image from "next/image"
 import ImageUpload from "@/components/admin/image-upload"
+import { useProduct } from "@/hooks/use-products"
+import { ProductServiceSupabase, type ProductWithImages } from "@/lib/product-service"
+import { supabase } from "@/lib/supabase"
+import DetailsEditor from "@/components/admin/details-editor"
 
-const categories = [
-  { value: "jogos-berco", label: "Jogos de Berço" },
-  { value: "toalhas", label: "Toalhas RN" },
-  { value: "kit-gestante", label: "Kits Gestante" },
-  { value: "vestidos", label: "Vestidos" },
-  { value: "bodies", label: "Bodies" },
-  { value: "macacoes", label: "Macacões" },
-  { value: "blusas", label: "Blusas" },
-  { value: "conjuntos", label: "Conjuntos" },
-]
+type Category = { id: number; name: string }
 
 const tamanhos = ["RN", "P", "M", "G", "1 ano", "2 anos", "Berço Padrão", "Mini Berço", "Único"]
 
 function EditProductPageContent() {
   const params = useParams()
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [product, setProduct] = useState<Product | null>(null)
-  const [images, setImages] = useState<string[]>([])
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const productId = Number.parseInt(params.id as string)
 
-  const productId = params.id as string
+  const { product: fetchedProduct, loading: loadingProduct, refresh } = useProduct(productId)
+
+  const [saving, setSaving] = useState(false)
+  const [formData, setFormData] = useState<ProductWithImages | null>(null)
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [newImages, setNewImages] = useState<File[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
 
   useEffect(() => {
-    // Carregar produto do localStorage
-    const loadProduct = () => {
-      try {
-        const savedProducts = localStorage.getItem("atelier-products")
-        if (savedProducts) {
-          const products = JSON.parse(savedProducts)
-          const foundProduct = products.find((p: Product) => p.id === Number.parseInt(productId))
-
-          if (foundProduct) {
-            setProduct(foundProduct)
-            setImages(foundProduct.images || [])
-          }
-        }
-      } catch (error) {
-        console.error("Error loading product:", error)
-      }
+    const loadCategories = async () => {
+      const { data } = await supabase.from("categories").select("id, name").order("name")
+      if (data) setCategories(data)
     }
+    loadCategories()
+  }, [])
 
-    loadProduct()
-  }, [productId])
+  useEffect(() => {
+    if (fetchedProduct) {
+      setFormData(fetchedProduct)
+    }
+  }, [fetchedProduct])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!product) return
+    if (!formData) return
 
-    if (images.length === 0) {
-      alert("Adicione pelo menos uma imagem do produto")
-      return
-    }
-
-    setLoading(true)
+    setSaving(true)
 
     try {
-      // Atualizar produto com novas informações
-      const updatedProduct = {
-        ...product,
-        images,
+      // 1. Atualizar dados do produto e adicionar novas imagens
+      await ProductServiceSupabase.updateProduct(
+        formData.id,
+        {
+          name: formData.name,
+          description: formData.description,
+          price: formData.price,
+          category: formData.category,
+          category_id: formData.category_id,
+          featured: formData.featured,
+          material: formData.material,
+          tamanhos: formData.tamanhos,
+          cuidados: formData.cuidados,
+          tempo_producao: formData.tempo_producao,
+          details: formData.details,
+          weight: formData.weight,
+          height: formData.height,
+          width: formData.width,
+          length: formData.length,
+          is_customizable: formData.is_customizable,
+        },
+        newImages
+      )
+
+      // 2. Atualizar ordem das imagens existentes
+      if (formData.images && formData.images.length > 0) {
+        const imageOrders = formData.images.map((img, index) => ({
+          id: img.id,
+          order: index
+        }))
+        await ProductServiceSupabase.reorderImages(formData.id, imageOrders)
       }
-
-      // Salvar no localStorage
-      const existingProducts = JSON.parse(localStorage.getItem("atelier-products") || "[]")
-      const productIndex = existingProducts.findIndex((p: Product) => p.id === product.id)
-
-      if (productIndex !== -1) {
-        existingProducts[productIndex] = updatedProduct
-      } else {
-        existingProducts.push(updatedProduct)
-      }
-
-      localStorage.setItem("atelier-products", JSON.stringify(existingProducts))
 
       alert("Produto atualizado com sucesso!")
-
-      // Forçar recarregamento da página para atualizar todos os componentes
-      window.location.href = "/admin"
+      router.push("/admin/products")
+      router.refresh()
     } catch (error) {
       console.error("Error updating product:", error)
       alert("Erro ao atualizar produto")
     } finally {
-      setLoading(false)
+      setSaving(false)
     }
   }
 
   const handleInputChange = (field: string, value: any) => {
-    if (!product) return
-    setProduct((prev) =>
-      prev
-        ? {
-            ...prev,
-            [field]: value,
-          }
-        : null,
-    )
+    if (!formData) return
+    setFormData({ ...formData, [field]: value })
   }
 
-  const handleDetailsChange = (field: string, value: any) => {
-    if (!product) return
-    setProduct((prev) =>
-      prev
-        ? {
-            ...prev,
-            details: {
-              ...prev.details,
-              [field]: value,
-            },
-          }
-        : null,
-    )
+  const handleCategoryChange = (value: string) => {
+    if (!formData) return
+    const categoryId = Number(value)
+    const category = categories.find(c => c.id === categoryId)
+    setFormData({
+      ...formData,
+      category_id: categoryId,
+      category: category?.name || ""
+    })
   }
 
   const handleTamanhosChange = (tamanho: string, checked: boolean) => {
-    if (!product) return
-    setProduct((prev) =>
-      prev
-        ? {
-            ...prev,
-            details: {
-              ...prev.details,
-              tamanhos: checked
-                ? [...prev.details.tamanhos, tamanho]
-                : prev.details.tamanhos.filter((t) => t !== tamanho),
-            },
-          }
-        : null,
-    )
+    if (!formData) return
+    const currentTamanhos = formData.tamanhos || []
+    setFormData({
+      ...formData,
+      tamanhos: checked
+        ? [...currentTamanhos, tamanho]
+        : currentTamanhos.filter((t) => t !== tamanho),
+    })
+  }
+
+  const handleDynamicDetailsChange = (newDetails: Record<string, any>) => {
+    if (!formData) return
+    setFormData({
+      ...formData,
+      details: {
+        ...formData.details,
+        ...newDetails
+      }
+    })
   }
 
   // Drag and Drop para reordenar imagens
@@ -162,27 +155,49 @@ function EditProductPageContent() {
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault()
 
-    if (draggedIndex === null) return
+    if (draggedIndex === null || !formData) return
 
-    const newImages = [...images]
-    const draggedImage = newImages[draggedIndex]
+    const newImagesList = [...formData.images]
+    const draggedImage = newImagesList[draggedIndex]
 
     // Remove o item da posição original
-    newImages.splice(draggedIndex, 1)
+    newImagesList.splice(draggedIndex, 1)
 
     // Insere na nova posição
-    newImages.splice(dropIndex, 0, draggedImage)
+    newImagesList.splice(dropIndex, 0, draggedImage)
 
-    setImages(newImages)
+    setFormData({ ...formData, images: newImagesList })
     setDraggedIndex(null)
   }
 
-  const removeImage = (index: number) => {
-    const newImages = images.filter((_, i) => i !== index)
-    setImages(newImages)
+  const removeImage = async (index: number) => {
+    if (!formData) return
+
+    const imageToDelete = formData.images[index]
+
+    if (confirm("Tem certeza que deseja remover esta imagem?")) {
+      try {
+        await ProductServiceSupabase.deleteProductImage(imageToDelete.id, imageToDelete.image_url)
+
+        const newImagesList = formData.images.filter((_, i) => i !== index)
+        setFormData({ ...formData, images: newImagesList })
+        refresh() // Recarregar dados do servidor para garantir sincronia
+      } catch (error) {
+        console.error("Error deleting image:", error)
+        alert("Erro ao deletar imagem")
+      }
+    }
   }
 
-  if (!product) {
+  const handleNewImages = (files: File[]) => {
+    setNewImages([...newImages, ...files])
+  }
+
+  const removeNewImage = (index: number) => {
+    setNewImages(newImages.filter((_, i) => i !== index))
+  }
+
+  if (loadingProduct || !formData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex items-center justify-center pt-24">
         <div className="text-center">
@@ -199,7 +214,7 @@ function EditProductPageContent() {
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <Button asChild variant="ghost">
-            <Link href="/admin">
+            <Link href="/admin/products">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar
             </Link>
@@ -214,17 +229,17 @@ function EditProductPageContent() {
           {/* Imagens com Reordenação */}
           <Card>
             <CardHeader>
-              <CardTitle>Imagens do Produto (Arraste para Reordenar)</CardTitle>
+              <CardTitle>Imagens do Produto</CardTitle>
             </CardHeader>
             <CardContent>
               {/* Imagens Existentes com Drag & Drop */}
-              {images.length > 0 && (
+              {formData.images && formData.images.length > 0 && (
                 <div className="mb-6">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Ordem das Imagens:</h3>
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Imagens Salvas (Arraste para Reordenar):</h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {images.map((imageUrl, index) => (
+                    {formData.images.map((img, index) => (
                       <div
-                        key={index}
+                        key={img.id}
                         draggable
                         onDragStart={() => handleDragStart(index)}
                         onDragOver={handleDragOver}
@@ -232,7 +247,7 @@ function EditProductPageContent() {
                         className="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-move border-2 border-dashed border-gray-300 hover:border-pink-400 transition-colors"
                       >
                         <Image
-                          src={imageUrl || "/placeholder.svg"}
+                          src={img.image_url || "/placeholder.svg"}
                           alt={`Produto ${index + 1}`}
                           fill
                           className="object-cover"
@@ -264,10 +279,38 @@ function EditProductPageContent() {
                 </div>
               )}
 
+              {/* Novas Imagens (Preview) */}
+              {newImages.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Novas Imagens (Serão enviadas ao salvar):</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {newImages.map((file, index) => (
+                      <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-blue-300">
+                        <Image
+                          src={URL.createObjectURL(file)}
+                          alt={`Nova imagem ${index + 1}`}
+                          fill
+                          className="object-cover"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-2 right-2 w-6 h-6 p-0"
+                          onClick={() => removeNewImage(index)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Upload de Novas Imagens */}
               <ImageUpload
-                onImagesUploaded={(newImages) => setImages([...images, ...newImages])}
-                maxImages={5 - images.length}
+                onImagesChange={handleNewImages}
+                maxImages={10} // Limite maior pois agora suportamos mais imagens
                 existingImages={[]}
               />
             </CardContent>
@@ -284,7 +327,7 @@ function EditProductPageContent() {
                   <Label htmlFor="name">Nome do Produto *</Label>
                   <Input
                     id="name"
-                    value={product.name}
+                    value={formData.name}
                     onChange={(e) => handleInputChange("name", e.target.value)}
                     placeholder="Ex: Kit Berço Premium"
                     required
@@ -295,7 +338,7 @@ function EditProductPageContent() {
                   <Label htmlFor="price">Preço *</Label>
                   <Input
                     id="price"
-                    value={product.price}
+                    value={formData.price}
                     onChange={(e) => handleInputChange("price", e.target.value)}
                     placeholder="Ex: R$ 189,90"
                     required
@@ -305,14 +348,17 @@ function EditProductPageContent() {
 
               <div className="space-y-2">
                 <Label htmlFor="category">Categoria *</Label>
-                <Select value={product.category} onValueChange={(value) => handleInputChange("category", value)}>
+                <Select
+                  value={formData.category_id?.toString() || ""}
+                  onValueChange={handleCategoryChange}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione uma categoria" />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
-                      <SelectItem key={category.value} value={category.value}>
-                        {category.label}
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -323,7 +369,7 @@ function EditProductPageContent() {
                 <Label htmlFor="description">Descrição *</Label>
                 <Textarea
                   id="description"
-                  value={product.description}
+                  value={formData.description || ""}
                   onChange={(e) => handleInputChange("description", e.target.value)}
                   placeholder="Descreva o produto..."
                   rows={4}
@@ -331,10 +377,59 @@ function EditProductPageContent() {
                 />
               </div>
 
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="weight">Peso (kg)</Label>
+                  <Input
+                    id="weight"
+                    type="number"
+                    step="0.001"
+                    value={formData.weight || ""}
+                    onChange={(e) => handleInputChange("weight", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="height">Altura (cm)</Label>
+                  <Input
+                    id="height"
+                    type="number"
+                    value={formData.height || ""}
+                    onChange={(e) => handleInputChange("height", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="width">Largura (cm)</Label>
+                  <Input
+                    id="width"
+                    type="number"
+                    value={formData.width || ""}
+                    onChange={(e) => handleInputChange("width", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="length">Comprimento (cm)</Label>
+                  <Input
+                    id="length"
+                    type="number"
+                    value={formData.length || ""}
+                    onChange={(e) => handleInputChange("length", e.target.value)}
+                  />
+                </div>
+              </div>
+
               <div className="flex items-center space-x-2">
-                <Checkbox
+                <Switch
+                  id="is_customizable"
+                  checked={formData.is_customizable || false}
+                  onCheckedChange={(checked) => handleInputChange("is_customizable", checked)}
+                />
+                <Label htmlFor="is_customizable">Produto Personalizável (Ex: Nome bordado)</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
                   id="featured"
-                  checked={product.featured}
+                  checked={formData.featured || false}
                   onCheckedChange={(checked) => handleInputChange("featured", checked)}
                 />
                 <Label htmlFor="featured">Produto em destaque</Label>
@@ -353,8 +448,8 @@ function EditProductPageContent() {
                   <Label htmlFor="material">Material</Label>
                   <Input
                     id="material"
-                    value={product.details.material}
-                    onChange={(e) => handleDetailsChange("material", e.target.value)}
+                    value={formData.material || ""}
+                    onChange={(e) => handleInputChange("material", e.target.value)}
                     placeholder="Ex: 100% Algodão Premium"
                   />
                 </div>
@@ -363,8 +458,8 @@ function EditProductPageContent() {
                   <Label htmlFor="tempo_producao">Tempo de Produção</Label>
                   <Input
                     id="tempo_producao"
-                    value={product.details.tempo_producao}
-                    onChange={(e) => handleDetailsChange("tempo_producao", e.target.value)}
+                    value={formData.tempo_producao || ""}
+                    onChange={(e) => handleInputChange("tempo_producao", e.target.value)}
                     placeholder="Ex: 7 a 10 dias úteis"
                   />
                 </div>
@@ -377,7 +472,7 @@ function EditProductPageContent() {
                     <div key={tamanho} className="flex items-center space-x-2">
                       <Checkbox
                         id={tamanho}
-                        checked={product.details.tamanhos.includes(tamanho)}
+                        checked={(formData.tamanhos || []).includes(tamanho)}
                         onCheckedChange={(checked) => handleTamanhosChange(tamanho, checked as boolean)}
                       />
                       <Label htmlFor={tamanho} className="text-sm">
@@ -392,10 +487,18 @@ function EditProductPageContent() {
                 <Label htmlFor="cuidados">Cuidados</Label>
                 <Textarea
                   id="cuidados"
-                  value={product.details.cuidados}
-                  onChange={(e) => handleDetailsChange("cuidados", e.target.value)}
+                  value={formData.cuidados || ""}
+                  onChange={(e) => handleInputChange("cuidados", e.target.value)}
                   placeholder="Ex: Lavar à mão com água fria, secar à sombra"
                   rows={3}
+                />
+              </div>
+
+              {/* Dynamic Details Editor */}
+              <div className="pt-4 border-t">
+                <DetailsEditor
+                  value={formData.details || {}}
+                  onChange={handleDynamicDetailsChange}
                 />
               </div>
             </CardContent>
@@ -404,10 +507,10 @@ function EditProductPageContent() {
           {/* Botões de Ação */}
           <div className="flex gap-4 justify-end">
             <Button type="button" variant="outline" asChild>
-              <Link href="/admin">Cancelar</Link>
+              <Link href="/admin/products">Cancelar</Link>
             </Button>
-            <Button type="submit" disabled={loading} className="bg-pink-500 hover:bg-pink-600">
-              {loading ? (
+            <Button type="submit" disabled={saving} className="bg-pink-500 hover:bg-pink-600">
+              {saving ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Salvando...

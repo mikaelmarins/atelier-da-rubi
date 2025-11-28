@@ -1,8 +1,9 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { useState, useEffect } from "react"
-import { Menu, X, Heart, ShoppingCart } from 'lucide-react'
+import { Menu, X, ShoppingCart } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { useCart } from "@/context/cart-context"
 import { Badge } from "@/components/ui/badge"
@@ -21,8 +22,16 @@ export default function Header() {
     <header className="fixed top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-pink-100 shadow-sm">
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <Heart className="h-8 w-8 text-pink-400" />
+          <Link href="/" className="flex items-center space-x-3">
+            <div className="relative h-12 w-12">
+              <Image
+                src="/logo.png"
+                alt="Logo Atelier da Rubi"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
             <span className="text-2xl font-dancing font-bold text-pink-600">Atelier da Rubi</span>
           </Link>
 
@@ -40,7 +49,7 @@ export default function Header() {
             <Link href="/#contato" className="text-gray-700 hover:text-pink-500 transition-colors">
               Contato
             </Link>
-            
+
             <Link href="/carrinho" className="relative group">
               <Button variant="ghost" size="icon" className="text-gray-700 group-hover:text-pink-500">
                 <ShoppingCart className="h-6 w-6" />

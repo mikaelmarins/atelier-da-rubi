@@ -6,11 +6,12 @@ import type { ProductWithImages } from "@/lib/product-service"
 export interface CartItem {
   product: ProductWithImages
   quantity: number
+  customization?: string
 }
 
 interface CartContextType {
   items: CartItem[]
-  addToCart: (product: ProductWithImages, quantity?: number) => void
+  addToCart: (product: ProductWithImages, quantity?: number, customization?: string) => void
   removeFromCart: (productId: number) => void
   updateQuantity: (productId: number, quantity: number) => void
   clearCart: () => void
@@ -44,16 +45,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [items, isLoaded])
 
-  const addToCart = (product: ProductWithImages, quantity = 1) => {
+  const addToCart = (product: ProductWithImages, quantity = 1, customization?: string) => {
     setItems((prevItems) => {
-      const existingItemIndex = prevItems.findIndex((item) => item.product.id === product.id)
+      const existingItemIndex = prevItems.findIndex(
+        (item) => item.product.id === product.id && item.customization === customization
+      )
 
       if (existingItemIndex > -1) {
         const newItems = [...prevItems]
         newItems[existingItemIndex].quantity += quantity
         return newItems
       } else {
-        return [...prevItems, { product, quantity }]
+        return [...prevItems, { product, quantity, customization }]
       }
     })
   }

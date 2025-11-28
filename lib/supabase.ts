@@ -13,42 +13,78 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export type Database = {
   public: {
     Tables: {
+      categories: {
+        Row: {
+          id: number
+          name: string
+          slug: string
+          created_at: string
+        }
+        Insert: {
+          name: string
+          slug: string
+        }
+        Update: {
+          name?: string
+          slug?: string
+        }
+      }
       products: {
         Row: {
           id: number
           name: string
           description: string
-          price: string
+          price: number
           category: string
+          category_id: number | null
           featured: boolean
           material: string
           tamanhos: string[]
           cuidados: string
           tempo_producao: string
+          details: any
+          weight: number
+          height: number
+          width: number
+          length: number
+          is_customizable: boolean
           created_at: string
-          updated_at: string
         }
         Insert: {
           name: string
           description: string
-          price: string
+          price: number
           category: string
+          category_id?: number | null
           featured?: boolean
           material?: string
           tamanhos?: string[]
           cuidados?: string
           tempo_producao?: string
+          details?: any
+          weight?: number
+          height?: number
+          width?: number
+          length?: number
+          is_customizable?: boolean
         }
         Update: {
           name?: string
           description?: string
-          price?: string
+          price?: number
           category?: string
+          category_id?: number | null
           featured?: boolean
           material?: string
           tamanhos?: string[]
           cuidados?: string
           tempo_producao?: string
+          details?: any
+          weight?: number
+          height?: number
+          width?: number
+          length?: number
+          is_customizable?: boolean
         }
       }
       product_images: {
@@ -76,6 +112,71 @@ export type Database = {
           email: string
           name: string
           created_at: string
+        }
+      }
+      orders: {
+        Row: {
+          id: number
+          created_at: string
+          user_id: string | null
+          status: string
+          total_amount: number
+          shipping_cost: number
+          customer_name: string
+          customer_email: string
+          customer_phone: string
+          address_zip: string
+          address_street: string
+          address_number: string
+          address_complement: string | null
+          address_neighborhood: string
+          address_city: string
+          address_state: string
+          payment_id: string | null
+          payment_method: string | null
+        }
+        Insert: {
+          user_id?: string | null
+          status?: string
+          total_amount: number
+          shipping_cost?: number
+          customer_name: string
+          customer_email: string
+          customer_phone: string
+          address_zip: string
+          address_street: string
+          address_number: string
+          address_complement?: string | null
+          address_neighborhood: string
+          address_city: string
+          address_state: string
+          payment_id?: string | null
+          payment_method?: string | null
+        }
+        Update: {
+          status?: string
+          payment_id?: string | null
+          payment_method?: string | null
+        }
+      }
+      order_items: {
+        Row: {
+          id: number
+          created_at: string
+          order_id: number
+          product_id: number | null
+          product_name: string
+          price: number
+          quantity: number
+          customization: string | null
+        }
+        Insert: {
+          order_id: number
+          product_id?: number | null
+          product_name: string
+          price: number
+          quantity: number
+          customization?: string | null
         }
       }
     }

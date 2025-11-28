@@ -16,10 +16,13 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter()
 
   useEffect(() => {
+    console.log("AuthGuard: checking auth", { loading, isAuthenticated })
     if (!loading) {
       if (!isAuthenticated) {
+        console.log("AuthGuard: not authenticated, redirecting to login")
         router.push("/admin/login")
       } else {
+        console.log("AuthGuard: authenticated")
         setChecking(false)
       }
     }

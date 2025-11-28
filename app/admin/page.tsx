@@ -2,16 +2,17 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Plus, Package, LogOut, Shuffle, TrendingUp, Eye, Edit } from "lucide-react"
+import { Eye, LogOut, Package, TrendingUp, Shuffle, Plus, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
-import AuthGuard from "@/components/auth/auth-guard"
+import { formatCurrency } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { ProductServiceSupabase } from "@/lib/product-service"
 import { useProducts } from "@/hooks/use-products"
 import Image from "next/image"
+import AuthGuard from "@/components/auth/auth-guard"
 
 function AdminPageContent() {
   const { user, logout } = useAuth()
@@ -212,7 +213,7 @@ function AdminPageContent() {
                         </div>
                         <div className="p-2">
                           <h3 className="font-medium text-xs truncate mb-1">{product.name}</h3>
-                          <p className="text-sm font-bold text-yellow-600">{product.price}</p>
+                          <p className="text-sm font-bold text-yellow-600">{formatCurrency(Number(product.price))}</p>
                           <Button
                             asChild
                             variant="outline"

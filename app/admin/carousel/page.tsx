@@ -1,14 +1,14 @@
 "use client"
 
-import type React from "react"
-import AuthGuard from "@/components/auth/auth-guard"
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { ArrowLeft, Save, GripVertical, X, Eye, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2, Save, GripVertical, Eye, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
+import { formatCurrency } from "@/lib/utils"
+import AuthGuard from "@/components/auth/auth-guard"
 import { useProducts } from "@/hooks/use-products"
 import Image from "next/image"
 
@@ -177,7 +177,7 @@ const CarouselManagementPageContent: React.FC = () => {
                         <div className="flex-1 min-w-0">
                           <h3 className="font-medium text-gray-800 truncate">{product.name}</h3>
                           <p className="text-sm text-gray-500 truncate">{product.description}</p>
-                          <p className="text-sm font-bold text-yellow-600">{product.price}</p>
+                          <p className="text-sm font-bold text-yellow-600">{formatCurrency(Number(product.price))}</p>
                         </div>
 
                         <div className="flex gap-2 flex-shrink-0">
@@ -230,7 +230,7 @@ const CarouselManagementPageContent: React.FC = () => {
                       <h3 className="font-medium text-gray-800 truncate">{product.name}</h3>
                       <p className="text-xs text-gray-500 truncate">{product.description}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm font-bold text-yellow-600">{product.price}</span>
+                        <span className="text-sm font-bold text-yellow-600">{formatCurrency(Number(product.price))}</span>
                         {product.featured && (
                           <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">Destaque</span>
                         )}
@@ -276,7 +276,7 @@ const CarouselManagementPageContent: React.FC = () => {
                     <div className="p-3">
                       <h3 className="font-medium text-sm truncate">{product.name}</h3>
                       <p className="text-xs text-gray-500 truncate">{product.description}</p>
-                      <p className="text-sm font-bold text-yellow-600 mt-1">{product.price}</p>
+                      <p className="text-sm font-bold text-yellow-600 mt-1">{formatCurrency(Number(product.price))}</p>
                     </div>
                   </div>
                 )

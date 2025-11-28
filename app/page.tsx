@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Hero from "@/components/hero"
+import VisualCategories from "@/components/visual-categories"
 import About from "@/components/about"
 import FeaturedCarousel from "@/components/featured-carousel"
 import Testimonials from "@/components/testimonials"
@@ -78,7 +79,7 @@ export default function Home() {
               longitude: -42.0278,
             },
             openingHours: ["Mo-Fr 09:00-18:00", "Sa 09:00-14:00"],
-            sameAs: ["https://instagram.com/atelierdarubi", "https://wa.me/5522999999999"],
+            sameAs: ["https://instagram.com/atelier.da.rubi", "https://wa.me/55997890934"],
             founder: {
               "@type": "Person",
               name: "Rubiana Lima",
@@ -99,6 +100,7 @@ export default function Home() {
       />
       <main className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
         <Hero />
+        <VisualCategories />
         <FeaturedCarousel />
         <About />
         <Testimonials />

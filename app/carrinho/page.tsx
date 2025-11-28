@@ -19,19 +19,20 @@ export default function CartPage() {
 
   const handleCalculateShipping = async () => {
     if (cep.length < 8) return
-    
+
     setIsCalculating(true)
     // Simulação de cálculo de frete
     // TODO: Implementar integração real com Correios/Melhor Envio
     await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // Regra de negócio simples para demonstração
+
+    // Regra de negócio simples para demonstração (Mock)
     // Região dos Lagos (CEP começa com 289) -> Grátis
-    // Outros -> R$ 25,00
+    // Outros -> Base R$ 25,00 + R$ 5,00 por item (simulando peso)
     if (cep.startsWith("289")) {
       setShippingCost(0)
     } else {
-      setShippingCost(25.00)
+      const weightSurcharge = items.reduce((acc, item) => acc + (item.quantity * 5), 0)
+      setShippingCost(25.00 + weightSurcharge)
     }
     setIsCalculating(false)
   }
@@ -59,7 +60,7 @@ export default function CartPage() {
   return (
     <div className="container mx-auto px-4 py-24">
       <h1 className="text-3xl font-bold text-gray-800 mb-8 font-dancing">Seu Carrinho</h1>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Lista de Produtos */}
         <div className="lg:col-span-2 space-y-4">
@@ -81,12 +82,17 @@ export default function CartPage() {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="flex-1 flex flex-col justify-between">
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-medium text-gray-900">{item.product.name}</h3>
                         <p className="text-sm text-gray-500 capitalize">{item.product.category}</p>
+                        {item.customization && (
+                          <p className="text-sm text-pink-600 mt-1">
+                            Personalização: <span className="font-medium">{item.customization}</span>
+                          </p>
+                        )}
                       </div>
                       <Button
                         variant="ghost"
@@ -97,7 +103,7 @@ export default function CartPage() {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                    
+
                     <div className="flex justify-between items-end mt-2">
                       <div className="flex items-center border rounded-md">
                         <Button
@@ -128,10 +134,10 @@ export default function CartPage() {
               </CardContent>
             </Card>
           ))}
-          
+
           <div className="flex justify-end">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200"
               onClick={clearCart}
             >
@@ -139,7 +145,7 @@ export default function CartPage() {
             </Button>
           </div>
         </div>
-        
+
         {/* Resumo do Pedido */}
         <div className="lg:col-span-1">
           <Card className="sticky top-24">
@@ -151,20 +157,20 @@ export default function CartPage() {
                 <span className="text-gray-600">Subtotal</span>
                 <span className="font-medium">{formatCurrency(cartTotal)}</span>
               </div>
-              
+
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                   <Truck className="h-4 w-4" /> Calcular Frete
                 </label>
                 <div className="flex gap-2">
-                  <Input 
-                    placeholder="CEP" 
-                    value={cep} 
+                  <Input
+                    placeholder="CEP"
+                    value={cep}
                     onChange={(e) => setCep(e.target.value.replace(/\D/g, ''))}
                     maxLength={8}
                   />
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={handleCalculateShipping}
                     disabled={cep.length < 8 || isCalculating}
                   >
@@ -178,17 +184,19 @@ export default function CartPage() {
                   </div>
                 )}
               </div>
-              
+
               <Separator />
-              
+
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
                 <span>{formatCurrency(cartTotal + (shippingCost || 0))}</span>
               </div>
             </CardContent>
             <CardFooter>
-              <Button className="w-full bg-green-600 hover:bg-green-700 text-white py-6 text-lg">
-                Finalizar Compra <ArrowRight className="ml-2 h-5 w-5" />
+              <Button asChild className="w-full bg-green-600 hover:bg-green-700 text-white py-6 text-lg">
+                <Link href="/checkout">
+                  Finalizar Compra <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
               </Button>
             </CardFooter>
           </Card>

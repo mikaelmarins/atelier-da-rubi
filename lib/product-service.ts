@@ -14,28 +14,9 @@ export class ProductServiceSupabase {
   static async createProduct(data: ProductInsert, imageFiles: File[]): Promise<ProductWithImages | null> {
     try {
       console.log("[v0] Creating product with data:", data)
-      
+
       // 1. Criar produto
       const { data: product, error: productError } = await supabase
-        .from("products")
-        .insert({
-          name: data.name,
-          description: data.description,
-          price: data.price,
-          category: data.category,
-          featured: data.featured || false,
-          material: data.material || "",
-          tamanhos: data.tamanhos || [],
-          cuidados: data.cuidados || "",
-          tempo_producao: data.tempo_producao || "",
-        })
-        .select()
-        .single()
-
-      if (productError || !product) {
-        console.error("[v0] Error creating product:", productError)
-        throw new Error("Falha ao criar produto")
-      }
 
       console.log("[v0] Product created successfully:", product.id)
 
@@ -92,7 +73,7 @@ export class ProductServiceSupabase {
   static async getAllProducts(): Promise<ProductWithImages[]> {
     try {
       console.log("[v0] Fetching all products...")
-      
+
       const { data: products, error } = await supabase
         .from("products")
         .select(`

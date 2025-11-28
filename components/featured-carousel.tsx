@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import Image from "next/image"
 import { useProducts } from "@/hooks/use-products"
+import { formatCurrency } from "@/lib/utils"
 
 export default function FeaturedCarousel() {
   const { products } = useProducts()
@@ -162,7 +163,7 @@ export default function FeaturedCarousel() {
                       </h3>
                       <p className="text-gray-600 text-sm mb-3 line-clamp-2">{item.description}</p>
                       <div className="flex items-center justify-between">
-                        <span className="text-2xl font-bold text-yellow-600">{item.price}</span>
+                        <span className="text-2xl font-bold text-yellow-600">{formatCurrency(Number(item.price))}</span>
                         <Button
                           asChild
                           size="sm"
@@ -180,7 +181,7 @@ export default function FeaturedCarousel() {
           </div>
 
           <div className="md:hidden">
-            <div className="relative">
+            <div className="relative px-4">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentIndex}
@@ -188,7 +189,7 @@ export default function FeaturedCarousel() {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -100 }}
                   transition={{ duration: 0.5, ease: "easeInOut" }}
-                  className="bg-white rounded-2xl shadow-lg overflow-hidden"
+                  className="bg-white rounded-2xl shadow-lg overflow-hidden mx-auto max-w-sm"
                 >
                   <div className="aspect-square relative">
                     <Image
@@ -207,9 +208,9 @@ export default function FeaturedCarousel() {
                   </div>
                   <div className="p-6">
                     <h3 className="font-semibold text-lg text-gray-800 mb-2">{featuredItems[currentIndex].name}</h3>
-                    <p className="text-gray-600 text-sm mb-3">{featuredItems[currentIndex].description}</p>
+                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">{featuredItems[currentIndex].description}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl font-bold text-yellow-600">{featuredItems[currentIndex].price}</span>
+                      <span className="text-2xl font-bold text-yellow-600">{formatCurrency(Number(featuredItems[currentIndex].price))}</span>
                       <Button
                         asChild
                         size="sm"
@@ -251,9 +252,8 @@ export default function FeaturedCarousel() {
             {Array.from({ length: maxIndex + 1 }).map((_, index) => (
               <button
                 key={index}
-                className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                  index === currentIndex ? "bg-yellow-500 scale-125 shadow-lg" : "bg-yellow-200 hover:bg-yellow-300"
-                }`}
+                className={`w-3 h-3 rounded-full transition-all duration-300 ${index === currentIndex ? "bg-yellow-500 scale-125 shadow-lg" : "bg-yellow-200 hover:bg-yellow-300"
+                  }`}
                 onClick={() => setCurrentIndex(index)}
               />
             ))}

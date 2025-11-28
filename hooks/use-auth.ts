@@ -9,7 +9,9 @@ export function useAuth() {
 
   useEffect(() => {
     // Verificar se há usuário logado
+    console.log("useAuth: calling getCurrentUser")
     AuthServiceSupabase.getCurrentUser().then((currentUser) => {
+      console.log("useAuth: getCurrentUser result", currentUser)
       setUser(currentUser)
       setLoading(false)
     })

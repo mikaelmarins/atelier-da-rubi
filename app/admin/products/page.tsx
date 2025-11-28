@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { Plus, Edit, Trash2, Eye, Search, Filter, Star } from "lucide-react"
+import { Plus, Search, Filter, Star, Eye, Edit, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { formatCurrency } from "@/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
 import Image from "next/image"
@@ -180,7 +181,7 @@ function ProductsListPageContent() {
                     <h3 className="font-semibold text-lg mb-1 line-clamp-1">{product.name}</h3>
                     <p className="text-sm text-gray-600 mb-2 line-clamp-2">{product.description}</p>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-xl font-bold text-yellow-600">{product.price}</span>
+                      <span className="text-xl font-bold text-yellow-600">{formatCurrency(Number(product.price))}</span>
                       <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
                         {categories.find((c) => c.value === product.category)?.label}
                       </span>

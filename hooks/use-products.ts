@@ -10,11 +10,14 @@ export function useProducts() {
 
   const loadProducts = async () => {
     try {
+      console.log("useProducts: calling getAllProducts")
       const data = await ProductServiceSupabase.getAllProducts()
+      console.log("useProducts: got data", data?.length)
       setProducts(data)
     } catch (error) {
       console.error("Error loading products:", error)
     } finally {
+      console.log("useProducts: setting loading false")
       setLoading(false)
     }
   }
