@@ -6,7 +6,7 @@ import { XCircle } from "lucide-react"
 
 export default function CheckoutFailurePage() {
     return (
-        <div className="container mx-auto px-4 py-24 flex flex-col items-center justify-center text-center max-w-md">
+        <div className="container mx-auto px-4 py-24 pt-28 flex flex-col items-center justify-center text-center max-w-md min-h-screen">
             <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6">
                 <XCircle className="h-10 w-10 text-red-600" />
             </div>

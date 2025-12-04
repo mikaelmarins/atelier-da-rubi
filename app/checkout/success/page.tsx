@@ -32,7 +32,7 @@ export default function CheckoutSuccessPage() {
 
     if (status === "loading") {
         return (
-            <div className="min-h-screen flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center pt-20">
                 <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
             </div>
         )
@@ -40,7 +40,7 @@ export default function CheckoutSuccessPage() {
 
     if (status === "failure") {
         return (
-            <div className="container mx-auto px-4 py-24 flex flex-col items-center justify-center text-center max-w-md">
+            <div className="container mx-auto px-4 py-24 pt-28 flex flex-col items-center justify-center text-center max-w-md min-h-screen">
                 <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6">
                     <XCircle className="h-10 w-10 text-red-600" />
                 </div>
@@ -56,7 +56,7 @@ export default function CheckoutSuccessPage() {
     }
 
     return (
-        <div className="container mx-auto px-4 py-24 flex flex-col items-center justify-center text-center max-w-md">
+        <div className="container mx-auto px-4 py-24 pt-28 flex flex-col items-center justify-center text-center max-w-md min-h-screen">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
                 <CheckCircle className="h-10 w-10 text-green-600" />
             </div>

@@ -173,7 +173,7 @@ export default function CheckoutPage() {
     }
 
     return (
-        <div className="container mx-auto px-4 py-12 max-w-6xl">
+        <div className="container mx-auto px-4 py-12 pt-24 max-w-6xl">
             <div className="mb-8">
                 <Link href="/carrinho" className="text-sm text-gray-500 hover:text-gray-900 flex items-center">
                     <ArrowLeft className="h-4 w-4 mr-1" /> Voltar ao Carrinho
@@ -324,7 +324,7 @@ export default function CheckoutPage() {
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processando...
                                         </>
                                     ) : (
-                                        "Confirmar Pedido"
+                                        "Prosseguir para o Pagamento"
                                     )}
                                 </Button>
                             </CardFooter>
