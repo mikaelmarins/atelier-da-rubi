@@ -1,194 +1,334 @@
-import { StorageService } from "./storage"
-import type { Product } from "@/data/products"
+import { supabase } from "./supabase"
+import type { Database } from "./supabase"
 
-export interface CreateProductData {
-  name: string
-  description: string
-  price: string
-  category: string
-  details: {
-    material: string
-    tamanhos: string[]
-    cuidados: string
-    tempo_producao: string
-  }
-  featured?: boolean
+type Product = Database["public"]["Tables"]["products"]["Row"]
+type ProductInsert = Database["public"]["Tables"]["products"]["Insert"]
+type ProductImage = Database["public"]["Tables"]["product_images"]["Row"]
+
+export interface ProductWithImages extends Product {
+  images: ProductImage[]
 }
 
-export interface UpdateProductData extends Partial<CreateProductData> {
-  id: number
-}
-
-export class ProductService {
-  private static products: Product[] = []
-  private static nextId = 1
-
-  static async createProduct(data: CreateProductData, imageFiles: File[]): Promise<Product> {
+export class ProductServiceSupabase {
+  // Criar produto
+  static async createProduct(data: ProductInsert, imageFiles: File[]): Promise<ProductWithImages | null> {
     try {
-      // Upload das imagens
-      const uploadedImages = await StorageService.uploadMultipleImages(imageFiles, "products")
+      console.log("[v0] Creating product with data:", data)
 
-      const product: Product = {
-        id: this.nextId++,
-        name: data.name,
-        description: data.description,
-        price: data.price,
-        category: data.category,
-        images: uploadedImages.map((img) => img.url),
-        details: data.details,
-        featured: data.featured || false,
+      // 1. Criar produto
+      const { data: product, error: productError } = await supabase
+
+      console.log("[v0] Product created successfully:", product.id)
+
+      // 2. Upload de imagens
+      const imageUrls: { url: string; order: number }[] = []
+
+      for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i]
+        const fileExt = file.name.split(".").pop()
+        const fileName = `${product.id}-${Date.now()}-${i}.${fileExt}`
+        const filePath = `products/${fileName}`
+
+        // Upload para Supabase Storage
+        const { error: uploadError } = await supabase.storage.from("product-images").upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        })
+
+        if (uploadError) {
+          console.error("Error uploading image:", uploadError)
+          continue
+        }
+
+        // Obter URL pública
+        const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(filePath)
+
+        imageUrls.push({ url: urlData.publicUrl, order: i })
       }
 
-      this.products.push(product)
-      await this.saveToStorage()
+      // 3. Salvar referências das imagens
+      if (imageUrls.length > 0) {
+        const { error: imagesError } = await supabase.from("product_images").insert(
+          imageUrls.map(({ url, order }) => ({
+            product_id: product.id,
+            image_url: url,
+            display_order: order,
+          })),
+        )
 
-      return product
+        if (imagesError) {
+          console.error("Error saving image references:", imagesError)
+        }
+      }
+
+      // 4. Buscar produto completo com imagens
+      return await this.getProductById(product.id)
     } catch (error) {
-      console.error("Error creating product:", error)
-      throw new Error("Failed to create product")
+      console.error("[v0] Error in createProduct:", error)
+      throw error
     }
   }
 
-  static async updateProduct(data: UpdateProductData, newImageFiles?: File[]): Promise<Product> {
+  // Buscar todos os produtos
+  static async getAllProducts(): Promise<ProductWithImages[]> {
     try {
-      const productIndex = this.products.findIndex((p) => p.id === data.id)
-      if (productIndex === -1) {
-        throw new Error("Product not found")
+      console.log("[v0] Fetching all products...")
+
+      const { data: products, error } = await supabase
+        .from("products")
+        .select(`
+          *,
+          images:product_images(*)
+        `)
+        .order("created_at", { ascending: false })
+
+      if (error) {
+        console.error("[v0] Error fetching products:", error)
+        throw error
       }
 
-      const existingProduct = this.products[productIndex]
-      let images = existingProduct.images
+      console.log("[v0] Products fetched successfully:", products?.length || 0)
+      return (products as any) || []
+    } catch (error) {
+      console.error("[v0] Error in getAllProducts:", error)
+      throw error
+    }
+  }
 
-      // Se há novas imagens, fazer upload
+  // Buscar produto por ID
+  static async getProductById(id: number): Promise<ProductWithImages | null> {
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select(`
+          *,
+          images:product_images(*)
+        `)
+        .eq("id", id)
+        .single()
+
+      if (error) {
+        console.error("Error fetching product:", error)
+        return null
+      }
+
+      return data as any
+    } catch (error) {
+      console.error("Error in getProductById:", error)
+      return null
+    }
+  }
+
+  // Buscar produtos por categoria
+  static async getProductsByCategory(category: string): Promise<ProductWithImages[]> {
+    try {
+      if (category === "todos") {
+        return await this.getAllProducts()
+      }
+
+      const { data: products, error } = await supabase
+        .from("products")
+        .select(`
+          *,
+          images:product_images(*)
+        `)
+        .eq("category", category)
+        .order("created_at", { ascending: false })
+
+      if (error) {
+        console.error("Error fetching products by category:", error)
+        return []
+      }
+
+      return (products as any) || []
+    } catch (error) {
+      console.error("Error in getProductsByCategory:", error)
+      return []
+    }
+  }
+
+  // Buscar produtos em destaque
+  static async getFeaturedProducts(): Promise<ProductWithImages[]> {
+    try {
+      const { data: products, error } = await supabase
+        .from("products")
+        .select(`
+          *,
+          images:product_images(*)
+        `)
+        .eq("featured", true)
+        .order("created_at", { ascending: false })
+
+      if (error) {
+        console.error("Error fetching featured products:", error)
+        return []
+      }
+
+      return (products as any) || []
+    } catch (error) {
+      console.error("Error in getFeaturedProducts:", error)
+      return []
+    }
+  }
+
+  // Atualizar produto
+  static async updateProduct(
+    id: number,
+    data: Partial<ProductInsert>,
+    newImageFiles?: File[],
+  ): Promise<ProductWithImages | null> {
+    try {
+      // 1. Atualizar dados do produto
+      const { error: updateError } = await supabase.from("products").update(data).eq("id", id)
+
+      if (updateError) {
+        console.error("Error updating product:", updateError)
+        throw new Error("Falha ao atualizar produto")
+      }
+
+      // 2. Adicionar novas imagens se houver
       if (newImageFiles && newImageFiles.length > 0) {
-        const uploadedImages = await StorageService.uploadMultipleImages(newImageFiles, "products")
-        images = [...images, ...uploadedImages.map((img) => img.url)]
+        // Buscar ordem atual máxima
+        const { data: existingImages } = await supabase
+          .from("product_images")
+          .select("display_order")
+          .eq("product_id", id)
+          .order("display_order", { ascending: false })
+          .limit(1)
+
+        const maxOrder = existingImages?.[0]?.display_order ?? -1
+
+        const imageUrls: { url: string; order: number }[] = []
+
+        for (let i = 0; i < newImageFiles.length; i++) {
+          const file = newImageFiles[i]
+          const fileExt = file.name.split(".").pop()
+          const fileName = `${id}-${Date.now()}-${i}.${fileExt}`
+          const filePath = `products/${fileName}`
+
+          const { error: uploadError } = await supabase.storage.from("product-images").upload(filePath, file, {
+            cacheControl: "3600",
+            upsert: false,
+          })
+
+          if (uploadError) {
+            console.error("Error uploading image:", uploadError)
+            continue
+          }
+
+          const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(filePath)
+
+          imageUrls.push({ url: urlData.publicUrl, order: maxOrder + i + 1 })
+        }
+
+        if (imageUrls.length > 0) {
+          await supabase.from("product_images").insert(
+            imageUrls.map(({ url, order }) => ({
+              product_id: id,
+              image_url: url,
+              display_order: order,
+            })),
+          )
+        }
       }
 
-      const updatedProduct: Product = {
-        ...existingProduct,
-        ...data,
-        images,
-      }
-
-      this.products[productIndex] = updatedProduct
-      await this.saveToStorage()
-
-      return updatedProduct
+      // 3. Retornar produto atualizado
+      return await this.getProductById(id)
     } catch (error) {
-      console.error("Error updating product:", error)
-      throw new Error("Failed to update product")
+      console.error("Error in updateProduct:", error)
+      throw error
     }
   }
 
+  // Deletar produto
   static async deleteProduct(id: number): Promise<void> {
     try {
-      const productIndex = this.products.findIndex((p) => p.id === id)
-      if (productIndex === -1) {
-        throw new Error("Product not found")
-      }
+      // 1. Buscar imagens para deletar do storage
+      const { data: images } = await supabase.from("product_images").select("image_url").eq("product_id", id)
 
-      const product = this.products[productIndex]
-
-      // Deletar imagens do storage
-      const pathnames = product.images.map((url) => {
-        const urlParts = url.split("/")
-        return urlParts[urlParts.length - 1]
-      })
-
-      await StorageService.deleteMultipleImages(pathnames)
-
-      // Remover produto da lista
-      this.products.splice(productIndex, 1)
-      await this.saveToStorage()
-    } catch (error) {
-      console.error("Error deleting product:", error)
-      throw new Error("Failed to delete product")
-    }
-  }
-
-  static async removeProductImage(productId: number, imageUrl: string): Promise<Product> {
-    try {
-      const productIndex = this.products.findIndex((p) => p.id === productId)
-      if (productIndex === -1) {
-        throw new Error("Product not found")
-      }
-
-      const product = this.products[productIndex]
-      const imageIndex = product.images.indexOf(imageUrl)
-
-      if (imageIndex === -1) {
-        throw new Error("Image not found")
-      }
-
-      // Deletar imagem do storage
-      const urlParts = imageUrl.split("/")
-      const pathname = urlParts[urlParts.length - 1]
-      await StorageService.deleteImage(pathname)
-
-      // Remover URL da lista de imagens
-      product.images.splice(imageIndex, 1)
-
-      this.products[productIndex] = product
-      await this.saveToStorage()
-
-      return product
-    } catch (error) {
-      console.error("Error removing product image:", error)
-      throw new Error("Failed to remove image")
-    }
-  }
-
-  static getAllProducts(): Product[] {
-    return [...this.products]
-  }
-
-  static getProductById(id: number): Product | undefined {
-    return this.products.find((p) => p.id === id)
-  }
-
-  static getProductsByCategory(category: string): Product[] {
-    if (category === "todos") return this.products
-    return this.products.filter((p) => p.category === category)
-  }
-
-  static getFeaturedProducts(): Product[] {
-    return this.products.filter((p) => p.featured)
-  }
-
-  private static async saveToStorage(): Promise<void> {
-    try {
-      // Em um ambiente real, você salvaria no banco de dados
-      // Por enquanto, vamos usar localStorage no cliente
-      if (typeof window !== "undefined") {
-        localStorage.setItem("atelier-products", JSON.stringify(this.products))
-        localStorage.setItem("atelier-next-id", this.nextId.toString())
-      }
-    } catch (error) {
-      console.error("Error saving to storage:", error)
-    }
-  }
-
-  private static loadFromStorage(): void {
-    try {
-      if (typeof window !== "undefined") {
-        const savedProducts = localStorage.getItem("atelier-products")
-        const savedNextId = localStorage.getItem("atelier-next-id")
-
-        if (savedProducts) {
-          this.products = JSON.parse(savedProducts)
-        }
-
-        if (savedNextId) {
-          this.nextId = Number.parseInt(savedNextId)
+      // 2. Deletar imagens do storage
+      if (images && images.length > 0) {
+        for (const image of images) {
+          const path = image.image_url.split("/product-images/")[1]
+          if (path) {
+            await supabase.storage.from("product-images").remove([path])
+          }
         }
       }
+
+      // 3. Deletar produto (cascade vai deletar as referências de imagens)
+      const { error } = await supabase.from("products").delete().eq("id", id)
+
+      if (error) {
+        console.error("Error deleting product:", error)
+        throw new Error("Falha ao deletar produto")
+      }
     } catch (error) {
-      console.error("Error loading from storage:", error)
+      console.error("Error in deleteProduct:", error)
+      throw error
     }
   }
 
-  static initialize(): void {
-    this.loadFromStorage()
+  // Deletar imagem específica
+  static async deleteProductImage(imageId: number, imageUrl: string): Promise<void> {
+    try {
+      // 1. Deletar do storage
+      const path = imageUrl.split("/product-images/")[1]
+      if (path) {
+        await supabase.storage.from("product-images").remove([path])
+      }
+
+      // 2. Deletar referência do banco
+      const { error } = await supabase.from("product_images").delete().eq("id", imageId)
+
+      if (error) {
+        console.error("Error deleting image:", error)
+        throw new Error("Falha ao deletar imagem")
+      }
+    } catch (error) {
+      console.error("Error in deleteProductImage:", error)
+      throw error
+    }
+  }
+
+  // Reordenar imagens
+  static async reorderImages(productId: number, imageOrders: { id: number; order: number }[]): Promise<void> {
+    try {
+      for (const { id, order } of imageOrders) {
+        await supabase.from("product_images").update({ display_order: order }).eq("id", id).eq("product_id", productId)
+      }
+    } catch (error) {
+      console.error("Error in reorderImages:", error)
+      throw error
+    }
+  }
+
+  // Buscar estatísticas
+  static async getStats() {
+    try {
+      const { count: totalProducts } = await supabase.from("products").select("*", { count: "exact", head: true })
+
+      const { count: featuredCount } = await supabase
+        .from("products")
+        .select("*", { count: "exact", head: true })
+        .eq("featured", true)
+
+      const { data: categories } = await supabase.from("products").select("category")
+
+      const uniqueCategories = new Set(categories?.map((p) => p.category) || [])
+
+      return {
+        totalProducts: totalProducts || 0,
+        featuredProducts: featuredCount || 0,
+        categories: uniqueCategories.size,
+      }
+    } catch (error) {
+      console.error("Error getting stats:", error)
+      return {
+        totalProducts: 0,
+        featuredProducts: 0,
+        categories: 0,
+      }
+    }
   }
 }

@@ -32,33 +32,6 @@ const testimonials = [
     product: "Kit Gestante Completo",
     image: "/placeholder.svg?height=80&width=80&text=Juliana",
   },
-  {
-    id: 4,
-    name: "Fernanda Costa",
-    location: "São Paulo, SP",
-    rating: 5,
-    text: "Mesmo morando longe, o atendimento foi impecável! O envio foi rápido e seguro. As peças chegaram perfeitas e são ainda mais lindas pessoalmente. Parabéns pelo trabalho!",
-    product: "Vestidinho Bordado",
-    image: "/placeholder.svg?height=80&width=80&text=Fernanda",
-  },
-  {
-    id: 5,
-    name: "Camila Oliveira",
-    location: "Rio de Janeiro, RJ",
-    rating: 5,
-    text: "Já é a terceira encomenda que faço! A qualidade é sempre impecável e o prazo sempre cumprido. O Atelier da Rubi se tornou minha referência em bordados infantis!",
-    product: "Bodies Bordados",
-    image: "/placeholder.svg?height=80&width=80&text=Camila",
-  },
-  {
-    id: 6,
-    name: "Patrícia Mendes",
-    location: "Iguaba Grande, RJ",
-    rating: 5,
-    text: "A atenção aos detalhes é impressionante! Cada ponto é feito com muito amor. Minha filha fica linda com as roupinhas do Atelier da Rubi. Trabalho excepcional!",
-    product: "Conjunto Bordado",
-    image: "/placeholder.svg?height=80&width=80&text=Patricia",
-  },
 ]
 
 export default function Testimonials() {
@@ -177,7 +150,7 @@ export default function Testimonials() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
-                href="https://wa.me/5522999999999?text=Olá! Vi os depoimentos e gostaria de conhecer mais sobre os bordados do Atelier da Rubi!"
+                href="https://wa.me/55997890934?text=Olá! Vi os depoimentos e gostaria de conhecer mais sobre os bordados do Atelier da Rubi!"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-full font-medium transition-colors inline-flex items-center justify-center"
@@ -185,7 +158,7 @@ export default function Testimonials() {
                 💬 Conversar no WhatsApp
               </a>
               <a
-                href="https://instagram.com/atelierdarubi"
+                href="https://instagram.com/atelier.da.rubi"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="border border-pink-300 text-pink-600 hover:bg-pink-50 px-6 py-3 rounded-full font-medium transition-colors inline-flex items-center justify-center"

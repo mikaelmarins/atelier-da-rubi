@@ -45,7 +45,7 @@ export default function About() {
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             viewport={{ once: true }}
-            className="space-y-6"
+            className="space-y-6 text-center md:text-left"
           >
             <h3 className="text-3xl font-dancing font-bold text-gray-800">Rubiana Lima</h3>
             <p className="text-gray-600 leading-relaxed">

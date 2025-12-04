@@ -1,83 +1,61 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Sparkles } from "lucide-react"
+import { Sparkles, Heart } from 'lucide-react'
 import Link from "next/link"
-import { motion } from "framer-motion"
-import { Heart } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { useState, useEffect } from "react"
+import Image from "next/image"
+
+const HERO_IMAGES = [
+  "/hero/hero-1.jpg",
+  "/hero/hero-2.jpg",
+  "/hero/hero-3.jpg",
+  "/hero/hero-4.jpg",
+]
 
 export default function Hero() {
+  const [currentImage, setCurrentImage] = useState(0)
+
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentImage((prev) => (prev + 1) % HERO_IMAGES.length)
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [])
+
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0">
-        <motion.div
-          className="absolute top-20 left-10 w-4 h-4 bg-pink-300 rounded-full opacity-60"
-          animate={{
-            y: [0, -20, 0],
-            scale: [1, 1.2, 1],
-          }}
-          transition={{
-            duration: 4,
-            repeat: Number.POSITIVE_INFINITY,
-            ease: "easeInOut",
-          }}
-        />
-        <motion.div
-          className="absolute top-40 right-20 w-6 h-6 bg-purple-300 rounded-full opacity-50"
-          animate={{
-            y: [0, 30, 0],
-            x: [0, 10, 0],
-          }}
-          transition={{
-            duration: 5,
-            repeat: Number.POSITIVE_INFINITY,
-            ease: "easeInOut",
-          }}
-        />
-        <motion.div
-          className="absolute bottom-40 left-20 w-3 h-3 bg-blue-300 rounded-full opacity-70"
-          animate={{
-            rotate: [0, 360],
-            scale: [1, 1.5, 1],
-          }}
-          transition={{
-            duration: 6,
-            repeat: Number.POSITIVE_INFINITY,
-            ease: "easeInOut",
-          }}
-        />
+    <section className="relative min-h-[calc(100vh-4rem)] md:min-h-[calc(100vh-5rem)] flex items-center justify-center overflow-hidden -mt-16 md:-mt-20">
+      {/* Background Carousel */}
+      <div className="absolute inset-0 z-0">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentImage}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1 }}
+            className="absolute inset-0"
+          >
+            <Image
+              src={HERO_IMAGES[currentImage]}
+              alt="Atelier da Rubi Bordados"
+              fill
+              className="object-cover"
+              priority
+            />
+            {/* Overlay Gradient for readability */}
+            <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px]" />
+          </motion.div>
+        </AnimatePresence>
       </div>
 
-      {/* Floating Hearts Effect */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {[...Array(8)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute"
-            initial={{
-              x: Math.random() * (typeof window !== "undefined" ? window.innerWidth : 1200),
-              y: typeof window !== "undefined" ? window.innerHeight + 50 : 800,
-              opacity: 0,
-              scale: 0,
-            }}
-            animate={{
-              y: -100,
-              opacity: [0, 1, 0],
-              scale: [0, 1, 0],
-              rotate: [0, 360],
-            }}
-            transition={{
-              duration: 4 + Math.random() * 2,
-              delay: i * 0.5,
-              repeat: Number.POSITIVE_INFINITY,
-              repeatDelay: 3,
-            }}
-          >
-            <Heart className="h-6 w-6 text-pink-300 fill-current" />
-          </motion.div>
-        ))}
-      </div>
+
 
       <div className="container mx-auto px-4 text-center relative z-10">
         <motion.div
@@ -90,19 +68,29 @@ export default function Hero() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
-            className="flex justify-center mb-6"
+            className="flex justify-center mb-6 gap-4"
           >
-            <Sparkles className="h-12 w-12 text-pink-400" />
+            <div className="relative h-24 w-24 md:h-32 md:w-32">
+              <Image
+                src="/logo.png"
+                alt="Logo Atelier da Rubi"
+                fill
+                className="object-contain drop-shadow-md"
+                priority
+              />
+            </div>
           </motion.div>
 
-          <h1 className="text-5xl md:text-7xl font-dancing font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 mb-6">
+          <h1 className="text-5xl md:text-7xl font-dancing font-bold text-gray-800 mb-6 drop-shadow-sm">
             Atelier da Rubi
           </h1>
 
-          <p className="text-xl md:text-2xl text-gray-600 mb-4 font-light">Bordados infantis únicos e delicados</p>
+          <p className="text-xl md:text-3xl text-gray-700 mb-4 font-light">
+            Bordados infantis únicos e delicados
+          </p>
 
-          <p className="text-lg text-gray-500 mb-8 max-w-2xl mx-auto">
-            Criados com amor e carinho pela <span className="text-pink-500 font-medium">Rubiana Lima</span> em Arraial
+          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto font-medium">
+            Criados com amor e carinho pela <span className="text-pink-600">Rubiana Lima</span> em Arraial
             do Cabo. Cada peça é uma obra de arte feita especialmente para seu pequeno.
           </p>
 
@@ -110,22 +98,22 @@ export default function Hero() {
             <Button
               asChild
               size="lg"
-              className="bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white px-8 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+              className="bg-pink-500 hover:bg-pink-600 text-white px-8 py-6 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
             >
-              <Link href="/catalogo">Ver Catálogo</Link>
+              <Link href="/catalogo">Ver Catálogo Completo</Link>
             </Button>
 
             <Button
               asChild
               variant="outline"
               size="lg"
-              className="border-pink-300 text-pink-600 hover:bg-pink-50 px-8 py-3 rounded-full bg-transparent"
+              className="border-2 border-pink-400 text-pink-600 hover:bg-pink-50 px-8 py-6 text-lg rounded-full bg-white/80 backdrop-blur-sm"
             >
               <Link href="#sobre">Conhecer História</Link>
             </Button>
           </div>
         </motion.div>
       </div>
-    </section>
+    </section >
   )
 }

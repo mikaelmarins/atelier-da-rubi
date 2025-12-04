@@ -2,142 +2,247 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Plus, Edit, Trash2, Eye } from "lucide-react"
+import { Eye, LogOut, Package, TrendingUp, Shuffle, Plus, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ProductService } from "@/lib/product-service"
-import type { Product } from "@/data/products"
-import Image from "next/image"
 import Link from "next/link"
+import { formatCurrency } from "@/lib/utils"
+import { useAuth } from "@/hooks/use-auth"
+import { useRouter } from "next/navigation"
+import { ProductServiceSupabase } from "@/lib/product-service"
+import { useProducts } from "@/hooks/use-products"
+import Image from "next/image"
+import AuthGuard from "@/components/auth/auth-guard"
 
-export default function AdminPage() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
+function AdminPageContent() {
+  const { user, logout } = useAuth()
+  const router = useRouter()
+  const { products, loading } = useProducts()
+  const [stats, setStats] = useState({
+    totalProducts: 0,
+    featuredProducts: 0,
+    categories: 0,
+  })
 
   useEffect(() => {
-    loadProducts()
-  }, [])
+    loadStats()
+  }, [products])
 
-  const loadProducts = async () => {
-    try {
-      ProductService.initialize()
-      const allProducts = ProductService.getAllProducts()
-      setProducts(allProducts)
-    } catch (error) {
-      console.error("Error loading products:", error)
-    } finally {
-      setLoading(false)
+  const loadStats = async () => {
+    const stats = await ProductServiceSupabase.getStats()
+    setStats(stats)
+  }
+
+  const handleLogout = () => {
+    if (confirm("Tem certeza que deseja sair?")) {
+      logout()
+      router.push("/admin/login")
     }
   }
 
-  const handleDeleteProduct = async (id: number) => {
-    if (!confirm("Tem certeza que deseja deletar este produto?")) return
-
-    try {
-      await ProductService.deleteProduct(id)
-      await loadProducts()
-    } catch (error) {
-      console.error("Error deleting product:", error)
-      alert("Erro ao deletar produto")
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando produtos...</p>
-        </div>
-      </div>
-    )
-  }
+  const recentProducts = products.slice(0, 6)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 pt-24">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-dancing font-bold text-gray-800">Administração</h1>
-            <p className="text-gray-600">Gerencie os produtos do Atelier da Rubi</p>
-          </div>
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-12">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-2">Dashboard</h1>
+            <p className="text-gray-600 text-lg">Bem-vinda, {user?.name}! 👋</p>
+          </motion.div>
 
-          <Button asChild className="bg-pink-500 hover:bg-pink-600">
-            <Link href="/admin/products/new">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Produto
-            </Link>
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => (
-            <motion.div
-              key={product.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="group"
-            >
-              <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="relative aspect-square">
-                  <Image
-                    src={product.images[0] || "/placeholder.svg"}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                  />
-                  {product.featured && (
-                    <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
-                      Destaque
-                    </div>
-                  )}
-                </div>
-
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg line-clamp-2">{product.name}</CardTitle>
-                  <p className="text-2xl font-bold text-yellow-600">{product.price}</p>
-                </CardHeader>
-
-                <CardContent className="pt-0">
-                  <p className="text-gray-600 text-sm line-clamp-2 mb-4">{product.description}</p>
-
-                  <div className="flex gap-2">
-                    <Button asChild variant="outline" size="sm" className="flex-1 bg-transparent">
-                      <Link href={`/catalogo/${product.id}`}>
-                        <Eye className="h-4 w-4 mr-1" />
-                        Ver
-                      </Link>
-                    </Button>
-
-                    <Button asChild variant="outline" size="sm" className="flex-1 bg-transparent">
-                      <Link href={`/admin/products/${product.id}/edit`}>
-                        <Edit className="h-4 w-4 mr-1" />
-                        Editar
-                      </Link>
-                    </Button>
-
-                    <Button variant="destructive" size="sm" onClick={() => handleDeleteProduct(product.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-
-        {products.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg mb-4">Nenhum produto cadastrado</p>
-            <Button asChild className="bg-pink-500 hover:bg-pink-600">
-              <Link href="/admin/products/new">
-                <Plus className="h-4 w-4 mr-2" />
-                Criar Primeiro Produto
+          <div className="flex items-center gap-3">
+            <Button asChild variant="outline" className="bg-white">
+              <Link href="/">
+                <Eye className="h-4 w-4 mr-2" />
+                Ver Site
               </Link>
             </Button>
+            <Button onClick={handleLogout} variant="outline" className="bg-white">
+              <LogOut className="h-4 w-4 mr-2" />
+              Sair
+            </Button>
           </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+          >
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Total de Produtos</p>
+                    <h3 className="text-3xl font-bold text-gray-900">{stats.totalProducts}</h3>
+                  </div>
+                  <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center">
+                    <Package className="h-6 w-6 text-pink-600" />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Button asChild size="sm" variant="outline" className="w-full bg-transparent">
+                    <Link href="/admin/products">Ver Todos</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Em Destaque</p>
+                    <h3 className="text-3xl font-bold text-gray-900">{stats.featuredProducts}</h3>
+                  </div>
+                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <TrendingUp className="h-6 w-6 text-yellow-600" />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Button asChild size="sm" variant="outline" className="w-full bg-transparent">
+                    <Link href="/admin/carousel">Gerenciar Carrossel</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+          >
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Categorias</p>
+                    <h3 className="text-3xl font-bold text-gray-900">{stats.categories}</h3>
+                  </div>
+                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                    <Shuffle className="h-6 w-6 text-purple-600" />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Button asChild size="sm" variant="outline" className="w-full bg-transparent">
+                    <Link href="/admin/products">Explorar</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Quick Actions */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="mb-12"
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle>Ações Rápidas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Button asChild className="bg-pink-500 hover:bg-pink-600 h-auto py-6">
+                  <Link href="/admin/products/new" className="flex flex-col items-center gap-2">
+                    <Plus className="h-8 w-8" />
+                    <span className="text-lg">Criar Produto</span>
+                  </Link>
+                </Button>
+
+                <Button asChild variant="outline" className="bg-white h-auto py-6">
+                  <Link href="/admin/products" className="flex flex-col items-center gap-2">
+                    <Package className="h-8 w-8" />
+                    <span className="text-lg">Gerenciar Produtos</span>
+                  </Link>
+                </Button>
+
+                <Button asChild variant="outline" className="bg-white h-auto py-6">
+                  <Link href="/admin/carousel" className="flex flex-col items-center gap-2">
+                    <Shuffle className="h-8 w-8" />
+                    <span className="text-lg">Configurar Carrossel</span>
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Recent Products */}
+        {!loading && recentProducts.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+          >
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Produtos Recentes</CardTitle>
+                  <Button asChild variant="outline" size="sm" className="bg-transparent">
+                    <Link href="/admin/products">Ver Todos</Link>
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  {recentProducts.map((product) => (
+                    <div key={product.id} className="group">
+                      <div className="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                        <div className="aspect-square relative">
+                          <Image
+                            src={product.images[0]?.image_url || "/placeholder.svg"}
+                            alt={product.name}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        </div>
+                        <div className="p-2">
+                          <h3 className="font-medium text-xs truncate mb-1">{product.name}</h3>
+                          <p className="text-sm font-bold text-yellow-600">{formatCurrency(Number(product.price))}</p>
+                          <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            className="w-full mt-2 text-xs h-7 bg-transparent"
+                          >
+                            <Link href={`/admin/products/${product.id}/edit`}>
+                              <Edit className="h-3 w-3 mr-1" />
+                              Editar
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
         )}
       </div>
     </div>
+  )
+}
+
+export default function AdminPage() {
+  return (
+    <AuthGuard>
+      <AdminPageContent />
+    </AuthGuard>
   )
 }

@@ -33,6 +33,7 @@ export default function Analytics() {
         gtag('config', '${GA_MEASUREMENT_ID}', {
           page_title: document.title,
           page_location: window.location.href,
+          send_page_view: true
         });
       `
       document.head.appendChild(script2)
@@ -91,7 +92,7 @@ export default function Analytics() {
   return null
 }
 
-// Event tracking functions
+// Event tracking functions para melhorar ranking
 export const trackEvent = (eventName: string, parameters?: any) => {
   if (typeof window.gtag !== "undefined") {
     window.gtag("event", eventName, parameters)
@@ -102,33 +103,50 @@ export const trackEvent = (eventName: string, parameters?: any) => {
   }
 }
 
-export const trackPurchase = (value: number, currency = "BRL") => {
-  trackEvent("purchase", {
-    value,
-    currency,
-  })
-}
-
-export const trackViewItem = (itemId: string, itemName: string, category: string, value?: number) => {
+// Eventos importantes para SEO e ranking
+export const trackProductView = (productId: string, productName: string, category: string, price: string) => {
   trackEvent("view_item", {
-    item_id: itemId,
-    item_name: itemName,
+    item_id: productId,
+    item_name: productName,
     item_category: category,
-    value,
+    price: Number.parseFloat(price.replace(/[^\d,]/g, "").replace(",", ".")),
+    currency: "BRL",
   })
 }
 
-export const trackAddToCart = (itemId: string, itemName: string, category: string, value?: number) => {
+export const trackAddToCart = (productId: string, productName: string, price: string) => {
   trackEvent("add_to_cart", {
-    item_id: itemId,
-    item_name: itemName,
-    item_category: category,
-    value,
+    item_id: productId,
+    item_name: productName,
+    price: Number.parseFloat(price.replace(/[^\d,]/g, "").replace(",", ".")),
+    currency: "BRL",
   })
 }
 
 export const trackContact = (method: string) => {
   trackEvent("contact", {
     method,
+    engagement_time_msec: Date.now(),
+  })
+}
+
+export const trackSearch = (searchTerm: string) => {
+  trackEvent("search", {
+    search_term: searchTerm,
+  })
+}
+
+export const trackScroll = (scrollDepth: number) => {
+  trackEvent("scroll", {
+    percent_scrolled: scrollDepth,
+  })
+}
+
+// Evento de engajamento importante para ranking
+export const trackEngagement = (type: string, value?: string) => {
+  trackEvent("engagement", {
+    engagement_type: type,
+    engagement_value: value,
+    engagement_time: new Date().toISOString(),
   })
 }

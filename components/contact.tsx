@@ -5,7 +5,7 @@ import { MapPin, Phone, Instagram, Clock, Truck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function Contact() {
-  const whatsappNumber = "5522999999999" // Substitua pelo número real
+  const whatsappNumber = "5522997890934" // Substitua pelo número real
   const whatsappMessage = "Olá! Gostaria de saber mais sobre os bordados do Atelier da Rubi."
 
   return (
@@ -33,7 +33,7 @@ export default function Contact() {
             viewport={{ once: true }}
             className="space-y-8"
           >
-            <div className="flex items-start space-x-4">
+            <div className="flex flex-col items-center text-center md:flex-row md:items-start md:text-left space-y-3 md:space-y-0 md:space-x-4">
               <div className="bg-pink-100 p-3 rounded-full">
                 <MapPin className="h-6 w-6 text-pink-500" />
               </div>
@@ -47,7 +47,7 @@ export default function Contact() {
               </div>
             </div>
 
-            <div className="flex items-start space-x-4">
+            <div className="flex flex-col items-center text-center md:flex-row md:items-start md:text-left space-y-3 md:space-y-0 md:space-x-4">
               <div className="bg-yellow-100 p-3 rounded-full">
                 <Truck className="h-6 w-6 text-yellow-500" />
               </div>
@@ -61,7 +61,7 @@ export default function Contact() {
               </div>
             </div>
 
-            <div className="flex items-start space-x-4">
+            <div className="flex flex-col items-center text-center md:flex-row md:items-start md:text-left space-y-3 md:space-y-0 md:space-x-4">
               <div className="bg-purple-100 p-3 rounded-full">
                 <Phone className="h-6 w-6 text-purple-500" />
               </div>
@@ -75,7 +75,7 @@ export default function Contact() {
               </div>
             </div>
 
-            <div className="flex items-start space-x-4">
+            <div className="flex flex-col items-center text-center md:flex-row md:items-start md:text-left space-y-3 md:space-y-0 md:space-x-4">
               <div className="bg-blue-100 p-3 rounded-full">
                 <Clock className="h-6 w-6 text-blue-500" />
               </div>
@@ -89,14 +89,14 @@ export default function Contact() {
               </div>
             </div>
 
-            <div className="flex items-start space-x-4">
+            <div className="flex flex-col items-center text-center md:flex-row md:items-start md:text-left space-y-3 md:space-y-0 md:space-x-4">
               <div className="bg-pink-100 p-3 rounded-full">
                 <Instagram className="h-6 w-6 text-pink-500" />
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800 mb-2">Instagram</h3>
                 <p className="text-gray-600">
-                  @atelierdarubi
+                  @atelier.da.rubi
                   <br />
                   Acompanhe nossos trabalhos
                 </p>
@@ -141,9 +141,9 @@ export default function Contact() {
                   variant="outline"
                   className="mt-2 border-pink-300 text-pink-600 hover:bg-pink-50 bg-transparent"
                 >
-                  <a href="https://instagram.com/atelierdarubi" target="_blank" rel="noopener noreferrer">
+                  <a href="https://instagram.com/atelier.da.rubi" target="_blank" rel="noopener noreferrer">
                     <Instagram className="h-4 w-4 mr-2" />
-                    @atelierdarubi
+                    @atelier.da.rubi
                   </a>
                 </Button>
               </div>

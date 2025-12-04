@@ -22,6 +22,7 @@ const config: Config = {
       fontFamily: {
         dancing: ["var(--font-dancing)", "cursive"],
         inter: ["var(--font-inter)", "sans-serif"],
+        playfair: ["var(--font-inter)", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
