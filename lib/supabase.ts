@@ -118,8 +118,10 @@ export type Database = {
         Row: {
           id: string
           created_at: string
+          updated_at: string | null
           user_id: string | null
           status: string
+          payment_status: string | null
           total_amount: number
           shipping_cost: number
           customer_name: string
@@ -134,11 +136,14 @@ export type Database = {
           address_state: string
           payment_id: string | null
           payment_method: string | null
+          tracking_code: string | null
+          tracking_url: string | null
         }
         Insert: {
           id?: string
           user_id?: string | null
           status?: string
+          payment_status?: string | null
           total_amount: number
           shipping_cost?: number
           customer_name: string
@@ -153,11 +158,17 @@ export type Database = {
           address_state: string
           payment_id?: string | null
           payment_method?: string | null
+          tracking_code?: string | null
+          tracking_url?: string | null
         }
         Update: {
           status?: string
+          payment_status?: string | null
           payment_id?: string | null
           payment_method?: string | null
+          tracking_code?: string | null
+          tracking_url?: string | null
+          updated_at?: string
         }
       }
       order_items: {

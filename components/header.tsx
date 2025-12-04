@@ -3,15 +3,24 @@
 import Link from "next/link"
 import Image from "next/image"
 import { useState, useEffect } from "react"
-import { Menu, ShoppingCart, Home, ShoppingBag, Info, Phone } from 'lucide-react'
+import { Menu, ShoppingCart, Home, ShoppingBag, Info, Phone, Package, User, LogOut } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { useCart } from "@/context/cart-context"
+import { useAuth } from "@/context/auth-context"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export default function Header() {
   const { itemsCount } = useCart()
+  const { user, profile, signOut, loading } = useAuth()
   const [mounted, setMounted] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
 
@@ -19,6 +28,11 @@ export default function Header() {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  const handleLogout = async () => {
+    await signOut()
+    setIsOpen(false)
+  }
 
   const NavLink = ({ href, children, onClick }: { href: string; children: React.ReactNode; onClick?: () => void }) => (
     <Link
@@ -49,7 +63,7 @@ export default function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex items-center space-x-6">
             <Link href="/" className="text-gray-700 hover:text-pink-500 transition-colors">Início</Link>
             <Link href="/catalogo" className="text-gray-700 hover:text-pink-500 transition-colors">Catálogo</Link>
             <Link href="/#sobre" className="text-gray-700 hover:text-pink-500 transition-colors">Sobre</Link>
@@ -65,6 +79,48 @@ export default function Header() {
                 )}
               </Button>
             </Link>
+
+            {/* User Account Dropdown */}
+            {mounted && !loading && (
+              user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2 border-pink-200">
+                      <User className="h-4 w-4" />
+                      <span className="hidden lg:inline max-w-[100px] truncate">
+                        {profile?.name?.split(" ")[0] || "Conta"}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem asChild>
+                      <Link href="/minha-conta" className="flex items-center gap-2 cursor-pointer">
+                        <User className="h-4 w-4" />
+                        Minha Conta
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/minha-conta" className="flex items-center gap-2 cursor-pointer">
+                        <Package className="h-4 w-4" />
+                        Meus Pedidos
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 cursor-pointer text-red-600">
+                      <LogOut className="h-4 w-4" />
+                      Sair
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Link href="/auth/login">
+                  <Button variant="outline" size="sm" className="gap-2 border-pink-200 hover:bg-pink-50">
+                    <User className="h-4 w-4" />
+                    Entrar
+                  </Button>
+                </Link>
+              )
+            )}
           </nav>
 
           {/* Mobile Actions */}
@@ -104,6 +160,29 @@ export default function Header() {
                     </div>
                   </div>
 
+                  {/* User info for mobile */}
+                  {mounted && !loading && (
+                    <div className="px-2 py-3 bg-pink-50 rounded-lg">
+                      {user ? (
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-800">{profile?.name || "Olá!"}</p>
+                            <p className="text-sm text-gray-500">{profile?.email}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Link href="/auth/login" onClick={() => setIsOpen(false)} className="flex-1">
+                            <Button variant="outline" className="w-full" size="sm">Entrar</Button>
+                          </Link>
+                          <Link href="/auth/register" onClick={() => setIsOpen(false)} className="flex-1">
+                            <Button className="w-full bg-pink-500 hover:bg-pink-600" size="sm">Criar Conta</Button>
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <nav className="flex flex-col space-y-2">
                     <NavLink href="/" onClick={() => setIsOpen(false)}>
                       <Home className="h-5 w-5" /> Início
@@ -111,6 +190,11 @@ export default function Header() {
                     <NavLink href="/catalogo" onClick={() => setIsOpen(false)}>
                       <ShoppingBag className="h-5 w-5" /> Catálogo
                     </NavLink>
+                    {user && (
+                      <NavLink href="/minha-conta" onClick={() => setIsOpen(false)}>
+                        <User className="h-5 w-5" /> Minha Conta
+                      </NavLink>
+                    )}
                     <NavLink href="/#sobre" onClick={() => setIsOpen(false)}>
                       <Info className="h-5 w-5" /> Sobre
                     </NavLink>
@@ -118,6 +202,16 @@ export default function Header() {
                       <Phone className="h-5 w-5" /> Contato
                     </NavLink>
                   </nav>
+
+                  {user && (
+                    <Button
+                      variant="outline"
+                      onClick={handleLogout}
+                      className="text-red-500 border-red-200 hover:bg-red-50"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" /> Sair
+                    </Button>
+                  )}
 
                   <div className="border-t border-gray-100 pt-6 mt-auto">
                     <p className="text-center text-sm text-gray-500">

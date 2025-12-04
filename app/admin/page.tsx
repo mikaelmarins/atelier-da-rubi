@@ -156,7 +156,7 @@ function AdminPageContent() {
               <CardTitle>Ações Rápidas</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Button asChild className="bg-pink-500 hover:bg-pink-600 h-auto py-6">
                   <Link href="/admin/products/new" className="flex flex-col items-center gap-2">
                     <Plus className="h-8 w-8" />
@@ -164,9 +164,16 @@ function AdminPageContent() {
                   </Link>
                 </Button>
 
+                <Button asChild variant="outline" className="bg-white h-auto py-6 border-green-200 hover:bg-green-50">
+                  <Link href="/admin/orders" className="flex flex-col items-center gap-2 text-green-700">
+                    <Package className="h-8 w-8" />
+                    <span className="text-lg">Gerenciar Pedidos</span>
+                  </Link>
+                </Button>
+
                 <Button asChild variant="outline" className="bg-white h-auto py-6">
                   <Link href="/admin/products" className="flex flex-col items-center gap-2">
-                    <Package className="h-8 w-8" />
+                    <Edit className="h-8 w-8" />
                     <span className="text-lg">Gerenciar Produtos</span>
                   </Link>
                 </Button>

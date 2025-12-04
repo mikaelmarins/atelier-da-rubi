@@ -7,6 +7,7 @@ import Footer from "@/components/footer"
 import Analytics from "@/components/analytics"
 import { Suspense } from "react"
 import { CartProvider } from "@/context/cart-context"
+import { AuthProvider } from "@/context/auth-context"
 import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({
@@ -122,13 +123,15 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} ${dancing.variable} ${playfair.variable} font-sans antialiased`}>
         <Suspense fallback={null}>
-          <CartProvider>
-            <Analytics />
-            <Header />
-            {children}
-            <Footer />
-            <Toaster />
-          </CartProvider>
+          <AuthProvider>
+            <CartProvider>
+              <Analytics />
+              <Header />
+              {children}
+              <Footer />
+              <Toaster />
+            </CartProvider>
+          </AuthProvider>
         </Suspense>
       </body>
     </html>
