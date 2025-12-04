@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react"
 import type { ProductWithImages } from "@/lib/product-service"
 
 export interface CartItem {
@@ -23,11 +23,11 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
-  const [isLoaded, setIsLoaded] = useState(false)
+  const isInitialized = useRef(false)
 
   // Load cart from localStorage on mount
   useEffect(() => {
-    const savedCart = localStorage.getItem("cart")
+    const savedCart = localStorage.getItem("atelier-cart")
     if (savedCart) {
       try {
         setItems(JSON.parse(savedCart))
@@ -35,15 +35,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
         console.error("Failed to parse cart from localStorage", error)
       }
     }
-    setIsLoaded(true)
+    isInitialized.current = true
   }, [])
 
-  // Save cart to localStorage whenever it changes
+  // Save cart to localStorage whenever items change
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem("cart", JSON.stringify(items))
+    if (isInitialized.current) {
+      localStorage.setItem("atelier-cart", JSON.stringify(items))
     }
-  }, [items, isLoaded])
+  }, [items])
 
   const addToCart = (product: ProductWithImages, quantity = 1, customization?: string) => {
     setItems((prevItems) => {

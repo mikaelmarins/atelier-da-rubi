@@ -116,7 +116,7 @@ export type Database = {
       }
       orders: {
         Row: {
-          id: number
+          id: string
           created_at: string
           user_id: string | null
           status: string
@@ -136,6 +136,7 @@ export type Database = {
           payment_method: string | null
         }
         Insert: {
+          id?: string
           user_id?: string | null
           status?: string
           total_amount: number
@@ -163,7 +164,7 @@ export type Database = {
         Row: {
           id: number
           created_at: string
-          order_id: number
+          order_id: string
           product_id: number | null
           product_name: string
           price: number
@@ -171,7 +172,7 @@ export type Database = {
           customization: string | null
         }
         Insert: {
-          order_id: number
+          order_id: string
           product_id?: number | null
           product_name: string
           price: number

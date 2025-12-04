@@ -73,7 +73,14 @@ function NewProductPageContent() {
     setLoading(true)
 
     try {
-      const product = await ProductServiceSupabase.createProduct(formData, imageFiles)
+      const product = await ProductServiceSupabase.createProduct({
+        ...formData,
+        price: Number(formData.price),
+        weight: Number(formData.weight) || 0,
+        height: Number(formData.height) || 0,
+        width: Number(formData.width) || 0,
+        length: Number(formData.length) || 0
+      }, imageFiles)
 
       if (product) {
         alert("Produto criado com sucesso!")
@@ -154,7 +161,7 @@ function NewProductPageContent() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-dancing font-bold text-gray-800">Novo Produto</h1>
+            <h1 className="text-3xl font-bold text-gray-800">Novo Produto</h1>
             <p className="text-gray-600">Adicione um novo produto ao catálogo</p>
           </div>
         </div>

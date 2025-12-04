@@ -48,7 +48,7 @@ function AdminPageContent() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-12">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <h1 className="text-4xl md:text-5xl font-dancing font-bold text-gray-800 mb-2">Dashboard</h1>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-2">Dashboard</h1>
             <p className="text-gray-600 text-lg">Bem-vinda, {user?.name}! 👋</p>
           </motion.div>
 

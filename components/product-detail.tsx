@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowLeft, Share2, ShoppingCart, X, ChevronLeft, ChevronRight, ZoomIn, MessageCircle, Truck, ShieldCheck, Ruler } from "lucide-react"
+import { ArrowLeft, Share2, ShoppingCart, X, ChevronLeft, ChevronRight, ZoomIn, MessageCircle, Truck, ShieldCheck, Ruler, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -30,6 +30,7 @@ export default function ProductDetail({ productId }: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [relatedProducts, setRelatedProducts] = useState<any[]>([])
   const [customizationName, setCustomizationName] = useState("")
+  const [isAdded, setIsAdded] = useState(false)
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -45,6 +46,9 @@ export default function ProductDetail({ productId }: Props) {
   }, [product, products, productId])
 
   const handleAddToCart = () => {
+    if (typeof window !== 'undefined') {
+      (window as any).__debug_click = true;
+    }
     if (product) {
       if (product.is_customizable && !customizationName.trim()) {
         toast({
@@ -56,11 +60,20 @@ export default function ProductDetail({ productId }: Props) {
       }
 
       addToCart(product, 1, customizationName)
+      setIsAdded(true)
+
+      // Feedback visual mais rápido e toast com duração curta
       toast({
         title: "Produto adicionado!",
         description: `${product.name} foi adicionado ao seu carrinho.`,
+        duration: 2000, // Fecha automaticamente em 2 segundos
       })
+
       setCustomizationName("")
+
+      setTimeout(() => {
+        setIsAdded(false)
+      }, 2000)
     }
   }
 
@@ -143,8 +156,8 @@ export default function ProductDetail({ productId }: Props) {
                   key={img.id}
                   onClick={() => setSelectedImage(idx)}
                   className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${selectedImage === idx
-                      ? "border-pink-500 ring-2 ring-pink-100"
-                      : "border-transparent hover:border-gray-200"
+                    ? "border-pink-500 ring-2 ring-pink-100"
+                    : "border-transparent hover:border-gray-200"
                     }`}
                 >
                   <Image
@@ -220,11 +233,24 @@ export default function ProductDetail({ productId }: Props) {
             <div className="flex flex-col gap-3">
               <Button
                 size="lg"
-                className="w-full bg-pink-600 hover:bg-pink-700 text-white h-14 text-lg font-medium shadow-md hover:shadow-lg transition-all"
+                className={`w-full h-14 text-lg font-medium shadow-md hover:shadow-lg transition-all ${isAdded
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-pink-600 hover:bg-pink-700 text-white"
+                  }`}
                 onClick={handleAddToCart}
+                disabled={isAdded}
               >
-                <ShoppingCart className="mr-2 h-5 w-5" />
-                Adicionar ao Carrinho
+                {isAdded ? (
+                  <>
+                    <Check className="mr-2 h-5 w-5" />
+                    Adicionado!
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart className="mr-2 h-5 w-5" />
+                    Adicionar ao Carrinho
+                  </>
+                )}
               </Button>
 
               <Button
@@ -244,6 +270,23 @@ export default function ProductDetail({ productId }: Props) {
               </Button>
             </div>
           </div>
+
+          {/* Success Animation Overlay */}
+          <AnimatePresence>
+            {isAdded && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.5, y: 50 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.5, y: 20 }}
+                className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-3 pointer-events-none"
+              >
+                <div className="bg-green-500 rounded-full p-1">
+                  <Check className="h-4 w-4 text-white" />
+                </div>
+                <span className="font-medium">Produto adicionado ao carrinho!</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Features / Trust Badges */}
           <div className="grid grid-cols-2 gap-4 pt-4">

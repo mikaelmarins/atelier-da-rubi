@@ -58,7 +58,7 @@ function NewCategoryPageContent() {
                         </Link>
                     </Button>
                     <div>
-                        <h1 className="text-3xl font-dancing font-bold text-gray-800">Nova Categoria</h1>
+                        <h1 className="text-3xl font-bold text-gray-800">Nova Categoria</h1>
                         <p className="text-gray-600">Adicione uma nova categoria de produtos</p>
                     </div>
                 </div>

@@ -33,7 +33,10 @@ export class OrderService {
             console.log("Creating order...", params)
 
             // 1. Create Order Record
+            // 1. Create Order Record
+            const orderId = crypto.randomUUID()
             const orderData: OrderInsert = {
+                id: orderId,
                 user_id: params.customer.userId,
                 customer_name: params.customer.name,
                 customer_email: params.customer.email,
@@ -50,20 +53,18 @@ export class OrderService {
                 status: "pending",
             }
 
-            const { data: order, error: orderError } = await supabase
+            const { error: orderError } = await supabase
                 .from("orders")
                 .insert(orderData)
-                .select()
-                .single()
 
-            if (orderError || !order) {
+            if (orderError) {
                 console.error("Error creating order record:", JSON.stringify(orderError, null, 2))
                 throw new Error(`Failed to create order: ${orderError?.message || 'Unknown error'}`)
             }
 
             // 2. Create Order Items
             const orderItems: OrderItemInsert[] = params.items.map((item) => ({
-                order_id: order.id,
+                order_id: orderId,
                 product_id: item.product.id,
                 product_name: item.product.name,
                 price: parseFloat(item.product.price), // Ensure price is number
@@ -79,7 +80,7 @@ export class OrderService {
                 throw new Error("Failed to create order items")
             }
 
-            return order
+            return { ...orderData, id: orderId }
         } catch (error) {
             console.error("OrderService.createOrder error:", error)
             throw error

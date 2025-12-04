@@ -18,16 +18,8 @@ export default function Hero() {
   const [currentImage, setCurrentImage] = useState(0)
 
   const [mounted, setMounted] = useState(false)
-  const [heartPositions, setHeartPositions] = useState<{ x: number; y: number; delay: number }[]>([])
-
   useEffect(() => {
     setMounted(true)
-    const positions = Array.from({ length: 12 }, (_, i) => ({
-      x: Math.random() * 100,
-      y: 110,
-      delay: i * 0.8,
-    }))
-    setHeartPositions(positions)
   }, [])
 
   useEffect(() => {
@@ -44,10 +36,10 @@ export default function Hero() {
         <AnimatePresence mode="wait">
           <motion.div
             key={currentImage}
-            initial={{ opacity: 0, scale: 1.1 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 1.5 }}
+            transition={{ duration: 1 }}
             className="absolute inset-0"
           >
             <Image
@@ -63,32 +55,7 @@ export default function Hero() {
         </AnimatePresence>
       </div>
 
-      {/* Floating Hearts Animation */}
-      {mounted && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-          {heartPositions.map((pos, i) => (
-            <motion.div
-              key={i}
-              className="absolute text-pink-300/60"
-              initial={{ left: `${pos.x}%`, top: `${pos.y}%`, opacity: 0, scale: 0 }}
-              animate={{
-                top: "-10%",
-                opacity: [0, 1, 0],
-                scale: [0.5, 1.2, 0.5],
-                rotate: [0, 360],
-              }}
-              transition={{
-                duration: 8 + Math.random() * 5,
-                delay: pos.delay,
-                repeat: Number.POSITIVE_INFINITY,
-                ease: "linear",
-              }}
-            >
-              <Heart className="w-6 h-6 fill-current" />
-            </motion.div>
-          ))}
-        </div>
-      )}
+
 
       <div className="container mx-auto px-4 text-center relative z-10">
         <motion.div

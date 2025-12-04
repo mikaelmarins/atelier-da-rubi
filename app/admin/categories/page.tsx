@@ -73,7 +73,7 @@ function CategoriesPageContent() {
                             </Link>
                         </Button>
                         <div>
-                            <h1 className="text-3xl font-dancing font-bold text-gray-800">Categorias</h1>
+                            <h1 className="text-3xl font-bold text-gray-800">Categorias</h1>
                             <p className="text-gray-600">Gerencie as categorias dos produtos</p>
                         </div>
                     </div>

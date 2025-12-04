@@ -95,7 +95,7 @@ function EditCategoryPageContent() {
                         </Link>
                     </Button>
                     <div>
-                        <h1 className="text-3xl font-dancing font-bold text-gray-800">Editar Categoria</h1>
+                        <h1 className="text-3xl font-bold text-gray-800">Editar Categoria</h1>
                         <p className="text-gray-600">Edite as informações da categoria</p>
                     </div>
                 </div>

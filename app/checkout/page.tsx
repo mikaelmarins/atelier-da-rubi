@@ -111,17 +111,34 @@ export default function CheckoutPage() {
             })
 
             if (order) {
-                // 2. Simulate Payment (Mock)
-                // In a real scenario, we would redirect to Mercado Pago here
-                // For now, we just simulate a successful payment after 2 seconds
-                setTimeout(() => {
-                    setStep(3)
-                    clearCart()
-                    toast({
-                        title: "Pedido realizado com sucesso!",
-                        description: "Redirecionando para confirmação...",
-                    })
-                }, 2000)
+                // 2. Create Mercado Pago Preference
+                const response = await fetch("/api/checkout", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        items: items,
+                        payer: {
+                            name: formData.name,
+                            email: formData.email,
+                            phone: formData.phone,
+                        },
+                        orderId: order.id,
+                        shippingCost: shippingCost,
+                    }),
+                })
+
+                const data = await response.json()
+
+                if (data.init_point) {
+                    // Redirect to Mercado Pago
+                    window.location.href = data.init_point
+                } else {
+                    const errorMessage = data.error || data.message || "Erro ao criar preferência de pagamento"
+                    console.error("Server error details:", data)
+                    throw new Error(errorMessage)
+                }
             } else {
                 throw new Error("Falha ao criar pedido")
             }
@@ -129,7 +146,7 @@ export default function CheckoutPage() {
             console.error("Error submitting order:", error)
             toast({
                 title: "Erro ao processar pedido",
-                description: "Tente novamente mais tarde.",
+                description: error instanceof Error ? error.message : "Tente novamente mais tarde.",
                 variant: "destructive"
             })
         } finally {
@@ -143,7 +160,7 @@ export default function CheckoutPage() {
                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
                     <CheckCircle className="h-10 w-10 text-green-600" />
                 </div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2 font-dancing">Pedido Confirmado!</h1>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Pedido Confirmado!</h1>
                 <p className="text-gray-600 mb-8">
                     Obrigado pela sua compra, {formData.name.split(" ")[0]}! <br />
                     Entraremos em contato via WhatsApp/Email para confirmar o pagamento.
@@ -322,8 +339,8 @@ export default function CheckoutPage() {
                             <CardTitle>Resumo</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {items.map((item) => (
-                                <div key={item.product.id} className="flex justify-between text-sm">
+                            {items.map((item, index) => (
+                                <div key={`${item.product.id}-${index}`} className="flex justify-between text-sm">
                                     <span className="text-gray-600">
                                         {item.quantity}x {item.product.name}
                                     </span>

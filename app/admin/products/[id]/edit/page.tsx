@@ -220,7 +220,7 @@ function EditProductPageContent() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-dancing font-bold text-gray-800">Editar Produto</h1>
+            <h1 className="text-3xl font-bold text-gray-800">Editar Produto</h1>
             <p className="text-gray-600">Edite as informações do produto</p>
           </div>
         </div>
