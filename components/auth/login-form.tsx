@@ -20,7 +20,7 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  const { login } = useAuth()
+  const { signIn } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,12 +29,12 @@ export default function LoginForm() {
     setError("")
 
     try {
-      const result = await login(formData.email, formData.password)
+      const result = await signIn(formData.email, formData.password)
 
-      if (result.success) {
+      if (!result.error) {
         router.push("/admin")
       } else {
-        setError(result.error || "Erro no login")
+        setError(result.error.message || "Erro no login")
       }
     } catch (error) {
       setError("Erro interno. Tente novamente.")

@@ -8,12 +8,14 @@ import Link from "next/link"
 import AuthGuard from "@/components/auth/auth-guard"
 import { supabase } from "@/lib/supabase"
 import type { Database } from "@/lib/supabase"
+import { useToast } from "@/hooks/use-toast"
 
 type Category = Database["public"]["Tables"]["categories"]["Row"]
 
 function CategoriesPageContent() {
     const [categories, setCategories] = useState<Category[]>([])
     const [loading, setLoading] = useState(true)
+    const { toast } = useToast()
 
     const loadCategories = async () => {
         try {
@@ -26,7 +28,11 @@ function CategoriesPageContent() {
             setCategories(data || [])
         } catch (error) {
             console.error("Error loading categories:", error)
-            alert("Erro ao carregar categorias")
+            toast({
+                title: "Erro ao carregar",
+                description: "Não foi possível carregar as categorias.",
+                variant: "destructive",
+            })
         } finally {
             setLoading(false)
         }
@@ -46,10 +52,18 @@ function CategoriesPageContent() {
                 .eq("id", id)
 
             if (error) throw error
+            toast({
+                title: "Categoria excluída",
+                description: "A categoria foi removida com sucesso.",
+            })
             loadCategories()
         } catch (error) {
             console.error("Error deleting category:", error)
-            alert("Erro ao excluir categoria")
+            toast({
+                title: "Erro ao excluir",
+                description: "Não foi possível excluir a categoria. Verifique se há produtos associados.",
+                variant: "destructive",
+            })
         }
     }
 

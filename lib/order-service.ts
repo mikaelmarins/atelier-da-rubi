@@ -67,7 +67,7 @@ export class OrderService {
                 order_id: orderId,
                 product_id: item.product.id,
                 product_name: item.product.name,
-                price: parseFloat(item.product.price), // Ensure price is number
+                price: typeof item.product.price === 'string' ? parseFloat(item.product.price) : item.product.price, // Ensure price is number
                 quantity: item.quantity,
                 customization: item.customization || null,
             }))

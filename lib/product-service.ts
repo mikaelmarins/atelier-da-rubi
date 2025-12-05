@@ -17,6 +17,15 @@ export class ProductServiceSupabase {
 
       // 1. Criar produto
       const { data: product, error: productError } = await supabase
+        .from("products")
+        .insert(data)
+        .select()
+        .single()
+
+      if (productError) {
+        console.error("[v0] Error creating product:", productError)
+        throw productError
+      }
 
       console.log("[v0] Product created successfully:", product.id)
 

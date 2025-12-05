@@ -191,6 +191,23 @@ export type Database = {
           customization?: string | null
         }
       }
+      carousel_config: {
+        Row: {
+          id: number
+          product_id: number
+          display_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          product_id: number
+          display_order: number
+        }
+        Update: {
+          product_id?: number
+          display_order?: number
+        }
+      }
     }
   }
 }

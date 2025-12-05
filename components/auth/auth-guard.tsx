@@ -12,11 +12,24 @@ interface AuthGuardProps {
 
 export default function AuthGuard({ children }: AuthGuardProps) {
   const [checking, setChecking] = useState(true)
-  const { isAuthenticated, loading } = useAuth()
+  const { user, session, loading } = useAuth()
   const router = useRouter()
 
+  // DEV MODE: Bypass auth for testing (set DEV_BYPASS_AUTH=true in .env.local)
+  const bypassAuth = process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true"
+
+  // Check if user is authenticated
+  const isAuthenticated = !!session && !!user
+
   useEffect(() => {
-    console.log("AuthGuard: checking auth", { loading, isAuthenticated })
+    console.log("AuthGuard: checking auth", { loading, isAuthenticated, bypassAuth })
+
+    if (bypassAuth) {
+      console.log("AuthGuard: DEV MODE - bypassing authentication")
+      setChecking(false)
+      return
+    }
+
     if (!loading) {
       if (!isAuthenticated) {
         console.log("AuthGuard: not authenticated, redirecting to login")
@@ -26,7 +39,11 @@ export default function AuthGuard({ children }: AuthGuardProps) {
         setChecking(false)
       }
     }
-  }, [isAuthenticated, loading, router])
+  }, [isAuthenticated, loading, router, bypassAuth])
+
+  if (bypassAuth) {
+    return <>{children}</>
+  }
 
   if (loading || checking) {
     return (

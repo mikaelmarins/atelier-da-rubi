@@ -21,6 +21,7 @@ import { useProduct } from "@/hooks/use-products"
 import { ProductServiceSupabase, type ProductWithImages } from "@/lib/product-service"
 import { supabase } from "@/lib/supabase"
 import DetailsEditor from "@/components/admin/details-editor"
+import { useToast } from "@/hooks/use-toast"
 
 type Category = { id: number; name: string }
 
@@ -38,6 +39,7 @@ function EditProductPageContent() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [newImages, setNewImages] = useState<File[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const { toast } = useToast()
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -61,13 +63,18 @@ function EditProductPageContent() {
     setSaving(true)
 
     try {
+      // Converter preço se for string formatada
+      const priceValue = typeof formData.price === 'string'
+        ? Number(formData.price.replace(/\D/g, '')) / 100
+        : formData.price
+
       // 1. Atualizar dados do produto e adicionar novas imagens
       await ProductServiceSupabase.updateProduct(
         formData.id,
         {
           name: formData.name,
           description: formData.description,
-          price: formData.price,
+          price: priceValue,
           category: formData.category,
           category_id: formData.category_id,
           featured: formData.featured,
@@ -94,12 +101,19 @@ function EditProductPageContent() {
         await ProductServiceSupabase.reorderImages(formData.id, imageOrders)
       }
 
-      alert("Produto atualizado com sucesso!")
+      toast({
+        title: "Produto atualizado! ✅",
+        description: `"${formData.name}" foi salvo com sucesso.`,
+      })
       router.push("/admin/products")
       router.refresh()
     } catch (error) {
       console.error("Error updating product:", error)
-      alert("Erro ao atualizar produto")
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível salvar as alterações. Tente novamente.",
+        variant: "destructive",
+      })
     } finally {
       setSaving(false)
     }

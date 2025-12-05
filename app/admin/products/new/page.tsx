@@ -18,6 +18,7 @@ import { ProductServiceSupabase } from "@/lib/product-service"
 import AuthGuard from "@/components/auth/auth-guard"
 import { supabase } from "@/lib/supabase"
 import DetailsEditor from "@/components/admin/details-editor"
+import { useToast } from "@/hooks/use-toast"
 
 type Category = { id: number; name: string }
 
@@ -25,6 +26,7 @@ const tamanhos = ["RN", "P", "M", "G", "1 ano", "2 anos", "Berço Padrão", "Min
 
 function NewProductPageContent() {
   const router = useRouter()
+  const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [imageFiles, setImageFiles] = useState<File[]>([])
@@ -57,16 +59,58 @@ function NewProductPageContent() {
     loadCategories()
   }, [])
 
+  // Formatar preço para exibição
+  const formatPriceInput = (value: string) => {
+    // Remove tudo que não é número
+    const numbers = value.replace(/\D/g, "")
+    // Converte para número e divide por 100 para ter centavos
+    const amount = Number(numbers) / 100
+    // Formata como moeda brasileira
+    return amount.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  }
+
+  // Converte preço formatado para número
+  const parsePriceToNumber = (value: string): number => {
+    const numbers = value.replace(/\D/g, "")
+    return Number(numbers) / 100
+  }
+
+  const handlePriceChange = (value: string) => {
+    const formatted = formatPriceInput(value)
+    setFormData(prev => ({ ...prev, price: formatted }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (imageFiles.length === 0) {
-      alert("Adicione pelo menos uma imagem do produto")
+      toast({
+        title: "Imagem obrigatória",
+        description: "Adicione pelo menos uma imagem do produto.",
+        variant: "destructive",
+      })
       return
     }
 
     if (!formData.name || !formData.description || !formData.price || !formData.category_id) {
-      alert("Preencha todos os campos obrigatórios")
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha todos os campos marcados com *.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const priceNumber = parsePriceToNumber(formData.price)
+    if (priceNumber <= 0) {
+      toast({
+        title: "Preço inválido",
+        description: "O preço deve ser maior que zero.",
+        variant: "destructive",
+      })
       return
     }
 
@@ -75,7 +119,7 @@ function NewProductPageContent() {
     try {
       const product = await ProductServiceSupabase.createProduct({
         ...formData,
-        price: Number(formData.price),
+        price: priceNumber,
         weight: Number(formData.weight) || 0,
         height: Number(formData.height) || 0,
         width: Number(formData.width) || 0,
@@ -83,14 +127,25 @@ function NewProductPageContent() {
       }, imageFiles)
 
       if (product) {
-        alert("Produto criado com sucesso!")
+        toast({
+          title: "Produto criado! 🎉",
+          description: `"${formData.name}" foi adicionado ao catálogo.`,
+        })
         router.push("/admin/products")
       } else {
-        alert("Erro ao criar produto")
+        toast({
+          title: "Erro ao criar",
+          description: "Não foi possível criar o produto. Tente novamente.",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Error creating product:", error)
-      alert("Erro ao criar produto: " + (error instanceof Error ? error.message : "Erro desconhecido"))
+      toast({
+        title: "Erro ao criar produto",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -195,13 +250,17 @@ function NewProductPageContent() {
 
                 <div className="space-y-2">
                   <Label htmlFor="price">Preço *</Label>
-                  <Input
-                    id="price"
-                    value={formData.price}
-                    onChange={(e) => handleInputChange("price", e.target.value)}
-                    placeholder="Ex: R$ 189,90"
-                    required
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+                    <Input
+                      id="price"
+                      value={formData.price}
+                      onChange={(e) => handlePriceChange(e.target.value)}
+                      placeholder="0,00"
+                      className="pl-10"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 

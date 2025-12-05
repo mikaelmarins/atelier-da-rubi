@@ -2,41 +2,89 @@
 
 import React, { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { ArrowLeft, Loader2, Save, GripVertical, Eye, X } from "lucide-react"
+import { ArrowLeft, Loader2, Save, GripVertical, Eye, X, Database, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { formatCurrency } from "@/lib/utils"
 import AuthGuard from "@/components/auth/auth-guard"
 import { useProducts } from "@/hooks/use-products"
+import { supabase } from "@/lib/supabase"
 import Image from "next/image"
+import { useToast } from "@/hooks/use-toast"
+
+const MAX_CAROUSEL_ITEMS = 8
 
 const CarouselManagementPageContent: React.FC = () => {
-  const { products, loading } = useProducts()
+  const { products, loading: loadingProducts } = useProducts()
   const [selectedProducts, setSelectedProducts] = useState<number[]>([])
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
+  const [loadingConfig, setLoadingConfig] = useState(true)
+  const [hasSupabaseTable, setHasSupabaseTable] = useState(true)
+  const { toast } = useToast()
 
+  // Carregar configuração do carrossel
   useEffect(() => {
-    // Carregar configuração atual do carrossel do localStorage
-    const savedCarousel = localStorage.getItem("carousel-products")
-    if (savedCarousel) {
-      try {
-        setSelectedProducts(JSON.parse(savedCarousel))
-      } catch (error) {
-        console.error("Error loading carousel:", error)
-        setSelectedProducts([])
-      }
-    }
+    loadCarouselConfig()
   }, [])
+
+  const loadCarouselConfig = async () => {
+    setLoadingConfig(true)
+    try {
+      // Tentar carregar do Supabase primeiro
+      const { data, error } = await supabase
+        .from("carousel_config")
+        .select("product_id")
+        .order("display_order")
+
+      if (error) {
+        // Se a tabela não existe, usar localStorage como fallback
+        if (error.code === "42P01") {
+          setHasSupabaseTable(false)
+          const savedCarousel = localStorage.getItem("carousel-products")
+          if (savedCarousel) {
+            try {
+              setSelectedProducts(JSON.parse(savedCarousel))
+            } catch {
+              setSelectedProducts([])
+            }
+          }
+        } else {
+          throw error
+        }
+      } else {
+        setHasSupabaseTable(true)
+        setSelectedProducts(data?.map(item => item.product_id) || [])
+      }
+    } catch (error) {
+      console.error("Error loading carousel config:", error)
+      // Fallback para localStorage
+      const savedCarousel = localStorage.getItem("carousel-products")
+      if (savedCarousel) {
+        try {
+          setSelectedProducts(JSON.parse(savedCarousel))
+        } catch {
+          setSelectedProducts([])
+        }
+      }
+    } finally {
+      setLoadingConfig(false)
+    }
+  }
 
   const handleProductToggle = (productId: number, checked: boolean) => {
     if (checked) {
-      if (selectedProducts.length < 8) {
+      if (selectedProducts.length < MAX_CAROUSEL_ITEMS) {
         setSelectedProducts([...selectedProducts, productId])
       } else {
-        alert("Máximo de 8 produtos no carrossel")
+        toast({
+          title: "Limite atingido",
+          description: `Máximo de ${MAX_CAROUSEL_ITEMS} produtos no carrossel.`,
+          variant: "destructive",
+        })
       }
     } else {
       setSelectedProducts(selectedProducts.filter((id) => id !== productId))
@@ -73,11 +121,44 @@ const CarouselManagementPageContent: React.FC = () => {
   const saveCarouselConfig = async () => {
     setSaving(true)
     try {
-      localStorage.setItem("carousel-products", JSON.stringify(selectedProducts))
-      alert("Configuração do carrossel salva com sucesso!")
+      if (hasSupabaseTable) {
+        // Salvar no Supabase
+        // 1. Deletar configuração antiga
+        await supabase.from("carousel_config").delete().neq("id", 0)
+
+        // 2. Inserir nova configuração
+        if (selectedProducts.length > 0) {
+          const insertData = selectedProducts.map((productId, index) => ({
+            product_id: productId,
+            display_order: index,
+          }))
+
+          const { error } = await supabase.from("carousel_config").insert(insertData)
+
+          if (error) throw error
+        }
+
+        toast({
+          title: "Carrossel salvo! 🎠",
+          description: "As alterações foram salvas no banco de dados.",
+        })
+      } else {
+        // Fallback para localStorage
+        localStorage.setItem("carousel-products", JSON.stringify(selectedProducts))
+        toast({
+          title: "Carrossel salvo!",
+          description: "Configuração salva localmente. Execute a migração SQL para persistir no banco.",
+        })
+      }
     } catch (error) {
       console.error("Error saving carousel config:", error)
-      alert("Erro ao salvar configuração")
+      // Fallback para localStorage em caso de erro
+      localStorage.setItem("carousel-products", JSON.stringify(selectedProducts))
+      toast({
+        title: "Salvo localmente",
+        description: "Não foi possível salvar no banco. Configuração salva localmente.",
+        variant: "destructive",
+      })
     } finally {
       setSaving(false)
     }
@@ -85,12 +166,12 @@ const CarouselManagementPageContent: React.FC = () => {
 
   const getProductById = (id: number) => products.find((p) => p.id === id)
 
-  if (loading) {
+  if (loadingProducts || loadingConfig) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex items-center justify-center pt-24">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando produtos...</p>
+          <p className="text-gray-600">Carregando configuração...</p>
         </div>
       </div>
     )
@@ -113,25 +194,36 @@ const CarouselManagementPageContent: React.FC = () => {
             </div>
           </div>
 
-          <Button onClick={saveCarouselConfig} disabled={saving} className="bg-pink-500 hover:bg-pink-600">
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Salvando...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Salvar
-              </>
+          <div className="flex items-center gap-2">
+            {!hasSupabaseTable && (
+              <Badge variant="outline" className="text-yellow-600 border-yellow-300">
+                <Database className="h-3 w-3 mr-1" />
+                Modo Local
+              </Badge>
             )}
-          </Button>
+            <Button onClick={loadCarouselConfig} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button onClick={saveCarouselConfig} disabled={saving} className="bg-pink-500 hover:bg-pink-600">
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Salvar
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
           <Card>
             <CardHeader>
-              <CardTitle>Produtos no Carrossel ({selectedProducts.length}/8)</CardTitle>
+              <CardTitle>Produtos no Carrossel ({selectedProducts.length}/{MAX_CAROUSEL_ITEMS})</CardTitle>
               <p className="text-sm text-gray-600">Arraste para reordenar</p>
             </CardHeader>
             <CardContent>
@@ -208,12 +300,13 @@ const CarouselManagementPageContent: React.FC = () => {
                 {products.map((product) => (
                   <div
                     key={product.id}
-                    className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    className={`flex items-center gap-4 p-3 rounded-lg hover:bg-gray-100 transition-colors ${selectedProducts.includes(product.id) ? "bg-pink-50 border border-pink-200" : "bg-gray-50"
+                      }`}
                   >
                     <Checkbox
                       checked={selectedProducts.includes(product.id)}
                       onCheckedChange={(checked) => handleProductToggle(product.id, checked as boolean)}
-                      disabled={!selectedProducts.includes(product.id) && selectedProducts.length >= 8}
+                      disabled={!selectedProducts.includes(product.id) && selectedProducts.length >= MAX_CAROUSEL_ITEMS}
                     />
 
                     <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
@@ -233,6 +326,11 @@ const CarouselManagementPageContent: React.FC = () => {
                         <span className="text-sm font-bold text-yellow-600">{formatCurrency(Number(product.price))}</span>
                         {product.featured && (
                           <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">Destaque</span>
+                        )}
+                        {selectedProducts.includes(product.id) && (
+                          <Badge className="bg-pink-100 text-pink-700 text-xs">
+                            #{selectedProducts.indexOf(product.id) + 1}
+                          </Badge>
                         )}
                       </div>
                     </div>

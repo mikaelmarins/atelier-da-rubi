@@ -47,6 +47,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { formatCurrency } from "@/lib/utils"
+import AuthGuard from "@/components/auth/auth-guard"
 
 interface Order {
     id: string
@@ -79,7 +80,7 @@ const statusOptions = [
     { value: "cancelled", label: "Cancelado", color: "bg-red-100 text-red-800" },
 ]
 
-export default function OrdersAdminPage() {
+function OrdersAdminPageContent() {
     const [orders, setOrders] = useState<Order[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
@@ -193,7 +194,7 @@ export default function OrdersAdminPage() {
     })
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 pt-24">
             <div className="container mx-auto px-4 py-8">
                 {/* Header */}
                 <div className="mb-8">
@@ -422,3 +423,12 @@ export default function OrdersAdminPage() {
         </div>
     )
 }
+
+export default function OrdersAdminPage() {
+    return (
+        <AuthGuard>
+            <OrdersAdminPageContent />
+        </AuthGuard>
+    )
+}
+

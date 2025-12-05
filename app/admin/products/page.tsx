@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Plus, Search, Filter, Star, Eye, Edit, Trash2 } from "lucide-react"
+import { Plus, Search, Filter, Star, Eye, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -13,43 +13,86 @@ import Image from "next/image"
 import AuthGuard from "@/components/auth/auth-guard"
 import { useProducts } from "@/hooks/use-products"
 import { ProductServiceSupabase } from "@/lib/product-service"
+import { supabase } from "@/lib/supabase"
+import { useToast } from "@/hooks/use-toast"
 
-const categories = [
-  { value: "todos", label: "Todas as Categorias" },
-  { value: "jogos-berco", label: "Jogos de Berço" },
-  { value: "toalhas", label: "Toalhas RN" },
-  { value: "kit-gestante", label: "Kits Gestante" },
-  { value: "vestidos", label: "Vestidos" },
-  { value: "bodies", label: "Bodies" },
-  { value: "macacoes", label: "Macacões" },
-  { value: "blusas", label: "Blusas" },
-  { value: "conjuntos", label: "Conjuntos" },
-]
+type Category = { id: number; name: string; slug: string }
+
+const ITEMS_PER_PAGE = 12
 
 function ProductsListPageContent() {
   const { products, loading, refresh } = useProducts()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("todos")
+  const [categories, setCategories] = useState<Category[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [deleting, setDeleting] = useState<number | null>(null)
+  const { toast } = useToast()
+
+  // Carregar categorias do Supabase
+  useEffect(() => {
+    const loadCategories = async () => {
+      const { data } = await supabase
+        .from("categories")
+        .select("id, name, slug")
+        .order("name")
+      if (data) setCategories(data)
+    }
+    loadCategories()
+  }, [])
 
   const filteredProducts = products
     .filter((p) => {
       const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesCategory = selectedCategory === "todos" || p.category === selectedCategory
+      const matchesCategory = selectedCategory === "todos" ||
+        p.category === selectedCategory ||
+        p.category_id?.toString() === selectedCategory
       return matchesSearch && matchesCategory
     })
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
+  // Paginação
+  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const paginatedProducts = filteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+
+  // Reset página quando filtro mudar
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, selectedCategory])
+
   const handleDelete = async (id: number, name: string) => {
     if (!confirm(`Tem certeza que deseja excluir "${name}"?`)) return
 
+    setDeleting(id)
     try {
       await ProductServiceSupabase.deleteProduct(id)
-      alert("Produto excluído com sucesso!")
+      toast({
+        title: "Produto excluído",
+        description: `"${name}" foi removido com sucesso.`,
+      })
       refresh()
     } catch (error) {
       console.error("Error deleting product:", error)
-      alert("Erro ao excluir produto")
+      toast({
+        title: "Erro ao excluir",
+        description: "Não foi possível excluir o produto. Tente novamente.",
+        variant: "destructive",
+      })
+    } finally {
+      setDeleting(null)
     }
+  }
+
+  // Encontrar nome da categoria
+  const getCategoryLabel = (product: typeof products[0]) => {
+    if (product.category_id) {
+      const cat = categories.find(c => c.id === product.category_id)
+      if (cat) return cat.name
+    }
+    // Fallback para category string
+    const cat = categories.find(c => c.slug === product.category || c.name === product.category)
+    return cat?.name || product.category || "Sem categoria"
   }
 
   if (loading) {
@@ -104,9 +147,10 @@ function ProductsListPageContent() {
                     <SelectValue placeholder="Categoria" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="todos">Todas as Categorias</SelectItem>
                     {categories.map((category) => (
-                      <SelectItem key={category.value} value={category.value}>
-                        {category.label}
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -117,7 +161,7 @@ function ProductsListPageContent() {
         </Card>
 
         {/* Products Grid */}
-        {filteredProducts.length === 0 ? (
+        {paginatedProducts.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
               <div className="max-w-md mx-auto">
@@ -142,73 +186,113 @@ function ProductsListPageContent() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map((product, index) => (
-              <motion.div
-                key={product.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-              >
-                <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 group">
-                  <div className="relative aspect-square">
-                    <Image
-                      src={product.images[0]?.image_url || "/placeholder.svg"}
-                      alt={product.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    {product.featured && (
-                      <div className="absolute top-2 right-2 bg-yellow-500 text-white p-2 rounded-full">
-                        <Star className="h-4 w-4 fill-current" />
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {paginatedProducts.map((product, index) => (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                >
+                  <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 group">
+                    <div className="relative aspect-square">
+                      <Image
+                        src={product.images[0]?.image_url || "/placeholder.svg"}
+                        alt={product.name}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      {product.featured && (
+                        <div className="absolute top-2 right-2 bg-yellow-500 text-white p-2 rounded-full">
+                          <Star className="h-4 w-4 fill-current" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                        <Button asChild size="sm" variant="secondary">
+                          <Link href={`/catalogo/${product.id}`}>
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button asChild size="sm" variant="secondary">
+                          <Link href={`/admin/products/${product.id}/edit`}>
+                            <Edit className="h-4 w-4" />
+                          </Link>
+                        </Button>
                       </div>
-                    )}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                      <Button asChild size="sm" variant="secondary">
-                        <Link href={`/catalogo/${product.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button asChild size="sm" variant="secondary">
-                        <Link href={`/admin/products/${product.id}/edit`}>
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold text-lg mb-1 line-clamp-1">{product.name}</h3>
-                    <p className="text-sm text-gray-600 mb-2 line-clamp-2">{product.description}</p>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xl font-bold text-yellow-600">{formatCurrency(Number(product.price))}</span>
-                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                        {categories.find((c) => c.value === product.category)?.label}
-                      </span>
                     </div>
 
-                    <div className="flex gap-2">
-                      <Button asChild variant="outline" size="sm" className="flex-1 bg-transparent">
-                        <Link href={`/admin/products/${product.id}/edit`}>
-                          <Edit className="h-3 w-3 mr-1" />
-                          Editar
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDelete(product.id, product.name)}
-                        className="flex-1"
-                      >
-                        <Trash2 className="h-3 w-3 mr-1" />
-                        Excluir
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
+                    <CardContent className="p-4">
+                      <h3 className="font-semibold text-lg mb-1 line-clamp-1">{product.name}</h3>
+                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">{product.description}</p>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xl font-bold text-yellow-600">{formatCurrency(Number(product.price))}</span>
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          {getCategoryLabel(product)}
+                        </span>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button asChild variant="outline" size="sm" className="flex-1 bg-transparent">
+                          <Link href={`/admin/products/${product.id}/edit`}>
+                            <Edit className="h-3 w-3 mr-1" />
+                            Editar
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(product.id, product.name)}
+                          disabled={deleting === product.id}
+                          className="flex-1"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          {deleting === product.id ? "..." : "Excluir"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-8">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                      className={currentPage === page ? "bg-pink-500 hover:bg-pink-600" : ""}
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
