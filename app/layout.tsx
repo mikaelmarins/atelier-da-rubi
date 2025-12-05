@@ -121,13 +121,15 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://www.facebook.com" />
         <link rel="canonical" href={process.env.NEXT_PUBLIC_SITE_URL} />
       </head>
-      <body className={`${inter.variable} ${dancing.variable} ${playfair.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${dancing.variable} ${playfair.variable} font-sans antialiased min-h-screen flex flex-col`}>
         <Suspense fallback={null}>
           <AuthProvider>
             <CartProvider>
               <Analytics />
               <Header />
-              {children}
+              <main className="flex-1">
+                {children}
+              </main>
               <Footer />
               <Toaster />
             </CartProvider>

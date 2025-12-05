@@ -23,13 +23,18 @@ import {
 interface Order {
     id: string
     status: string
-    payment_status: string
-    total: number
+    payment_status: string | null
+    total_amount: number
     shipping_cost: number
     tracking_code: string | null
     tracking_url: string | null
     created_at: string
     items: any[]
+    customer_name: string
+    customer_email: string
+    customer_phone: string
+    address_city: string
+    address_state: string
 }
 
 export default function AccountPage() {
@@ -241,7 +246,7 @@ export default function AccountPage() {
                                 </Card>
                             ) : (
                                 orders.map((order) => (
-                                    <Card key={order.id}>
+                                    <Card key={order.id} className="overflow-hidden">
                                         <CardHeader className="pb-2">
                                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                                 <div>
@@ -259,14 +264,14 @@ export default function AccountPage() {
                                                 {getStatusBadge(order.status)}
                                             </div>
                                         </CardHeader>
-                                        <CardContent>
+                                        <CardContent className="space-y-4">
                                             <div className="flex items-center justify-between">
                                                 <div>
                                                     <p className="text-sm text-gray-600">
-                                                        {order.items?.length || 0} itens
+                                                        {order.items?.length || 0} {order.items?.length === 1 ? "item" : "itens"}
                                                     </p>
                                                     <p className="text-lg font-bold text-gray-900">
-                                                        {formatCurrency(order.total + (order.shipping_cost || 0))}
+                                                        {formatCurrency(order.total_amount || 0)}
                                                     </p>
                                                 </div>
                                                 {order.tracking_code && (
@@ -287,6 +292,41 @@ export default function AccountPage() {
                                                     </div>
                                                 )}
                                             </div>
+
+                                            {/* Order Items Preview */}
+                                            {order.items && order.items.length > 0 && (
+                                                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                                                    <p className="text-xs font-medium text-gray-500 uppercase">Itens do Pedido</p>
+                                                    {order.items.slice(0, 3).map((item: any, idx: number) => (
+                                                        <div key={idx} className="flex justify-between text-sm">
+                                                            <span className="text-gray-700">
+                                                                {item.quantity}x {item.product_name}
+                                                                {item.customization && (
+                                                                    <span className="text-pink-600 text-xs ml-1">
+                                                                        ({item.customization})
+                                                                    </span>
+                                                                )}
+                                                            </span>
+                                                            <span className="text-gray-600">
+                                                                {formatCurrency(item.price * item.quantity)}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                    {order.items.length > 3 && (
+                                                        <p className="text-xs text-gray-500">
+                                                            + {order.items.length - 3} mais itens
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Delivery Address */}
+                                            {order.address_city && (
+                                                <div className="text-sm text-gray-600">
+                                                    <p className="text-xs font-medium text-gray-500 uppercase mb-1">Entrega</p>
+                                                    <p>{order.address_city}/{order.address_state}</p>
+                                                </div>
+                                            )}
                                         </CardContent>
                                     </Card>
                                 ))

@@ -77,10 +77,13 @@ export default function RegisterPage() {
         const { error } = await signUp(email, password, name)
 
         if (error) {
+            console.error("Registration error:", error.message, error)
             if (error.message.includes("already registered")) {
                 setError("Este e-mail já está cadastrado")
+            } else if (error.message.includes("AuthApiError")) {
+                setError("Erro na autenticação. Verifique suas credenciais.")
             } else {
-                setError("Erro ao criar conta. Tente novamente.")
+                setError(`Erro ao criar conta: ${error.message}`)
             }
             setLoading(false)
             return

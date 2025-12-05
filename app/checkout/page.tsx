@@ -12,19 +12,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { formatCurrency } from "@/lib/utils"
 import {
     ArrowLeft, CheckCircle, Loader2, Lock, CreditCard,
-    QrCode, ShieldCheck, Copy, Check, User, MapPin
+    QrCode, ShieldCheck, Copy, Check, User, MapPin, AlertTriangle
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { OrderService } from "@/lib/order-service"
+import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import Image from "next/image"
-
-declare global {
-    interface Window {
-        MercadoPago: any
-    }
-}
 
 export default function CheckoutPage() {
     const { items, cartTotal, clearCart } = useCart()
@@ -34,7 +29,7 @@ export default function CheckoutPage() {
 
     const [loading, setLoading] = useState(false)
     const [step, setStep] = useState(1) // 1: Dados, 2: Pagamento, 3: Sucesso
-    const [paymentMethod, setPaymentMethod] = useState<"card" | "pix">("card")
+    const [paymentMethod, setPaymentMethod] = useState<"card" | "pix">("pix")
     const [orderId, setOrderId] = useState<string>("")
 
     // Form data
@@ -61,6 +56,21 @@ export default function CheckoutPage() {
         installments: 1
     })
 
+    // Card brand detection
+    const [cardBrand, setCardBrand] = useState<string | null>(null)
+
+    // Detect card brand from number
+    const detectCardBrand = (number: string): string | null => {
+        const cleanNumber = number.replace(/\s/g, "")
+        if (/^4/.test(cleanNumber)) return "visa"
+        if (/^5[1-5]/.test(cleanNumber) || /^2[2-7]/.test(cleanNumber)) return "mastercard"
+        if (/^3[47]/.test(cleanNumber)) return "amex"
+        if (/^(636368|438935|504175|451416|636297|5067|4576|4011|506699)/.test(cleanNumber)) return "elo"
+        if (/^(606282|3841)/.test(cleanNumber)) return "hipercard"
+        if (/^(30[0-5]|36|38|39)/.test(cleanNumber)) return "diners"
+        return null
+    }
+
     // PIX data
     const [pixData, setPixData] = useState<{
         qr_code?: string
@@ -69,24 +79,6 @@ export default function CheckoutPage() {
 
     const [shippingCost, setShippingCost] = useState(0)
     const [copied, setCopied] = useState(false)
-    const [mpReady, setMpReady] = useState(false)
-
-    // Load MercadoPago SDK
-    useEffect(() => {
-        const script = document.createElement("script")
-        script.src = "https://sdk.mercadopago.com/js/v2"
-        script.async = true
-        script.onload = () => {
-            const mp = new window.MercadoPago(process.env.NEXT_PUBLIC_MP_PUBLIC_KEY || "", {
-                locale: "pt-BR"
-            })
-            setMpReady(true)
-        }
-        document.body.appendChild(script)
-        return () => {
-            document.body.removeChild(script)
-        }
-    }, [])
 
     // Fill form from profile and addresses
     useEffect(() => {
@@ -98,36 +90,35 @@ export default function CheckoutPage() {
                 phone: profile.phone || prev.phone
             }))
         }
-
-        const defaultAddr = addresses.find(a => a.is_default) || addresses[0]
-        if (defaultAddr) {
+        if (addresses && addresses.length > 0) {
+            const defaultAddress = addresses.find(a => a.is_default) || addresses[0]
             setFormData(prev => ({
                 ...prev,
-                zip: defaultAddr.zip,
-                street: defaultAddr.street,
-                number: defaultAddr.number,
-                complement: defaultAddr.complement || "",
-                neighborhood: defaultAddr.neighborhood,
-                city: defaultAddr.city,
-                state: defaultAddr.state
+                zip: defaultAddress.zip || prev.zip,
+                street: defaultAddress.street || prev.street,
+                number: defaultAddress.number || prev.number,
+                complement: defaultAddress.complement || prev.complement,
+                neighborhood: defaultAddress.neighborhood || prev.neighborhood,
+                city: defaultAddress.city || prev.city,
+                state: defaultAddress.state || prev.state
             }))
-            // Calculate shipping
-            if (defaultAddr.state === "RJ") {
-                setShippingCost(15)
-            } else {
-                setShippingCost(35)
-            }
         }
     }, [profile, addresses])
 
-    // Redirect if cart is empty
+    // Empty cart check
     if (items.length === 0 && step !== 3) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 pt-24">
-                <div className="container mx-auto px-4 py-24 flex flex-col items-center justify-center text-center">
-                    <h1 className="text-2xl font-bold mb-4">Seu carrinho está vazio</h1>
+            <div className="min-h-[70vh] flex flex-col items-center justify-center p-8">
+                <div className="text-center space-y-4">
+                    <div className="w-24 h-24 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
+                        <CreditCard className="h-12 w-12 text-gray-400" />
+                    </div>
+                    <h2 className="text-2xl font-semibold text-gray-800">Carrinho vazio</h2>
+                    <p className="text-gray-500">Adicione produtos ao carrinho para continuar</p>
                     <Link href="/catalogo">
-                        <Button className="bg-pink-500 hover:bg-pink-600">Voltar ao Catálogo</Button>
+                        <Button className="bg-pink-500 hover:bg-pink-600">
+                            Ver Catálogo
+                        </Button>
                     </Link>
                 </div>
             </div>
@@ -142,21 +133,20 @@ export default function CheckoutPage() {
     const handleCardInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target
 
-        // Format card number
         if (name === "number") {
             const formatted = value.replace(/\D/g, "").slice(0, 16).replace(/(\d{4})/g, "$1 ").trim()
             setCardData((prev) => ({ ...prev, number: formatted }))
+            const brand = detectCardBrand(formatted)
+            setCardBrand(brand)
             return
         }
 
-        // Format expiry
         if (name === "expiry") {
             const formatted = value.replace(/\D/g, "").slice(0, 4).replace(/(\d{2})(\d{0,2})/, "$1/$2")
             setCardData((prev) => ({ ...prev, expiry: formatted }))
             return
         }
 
-        // Format CVV
         if (name === "cvv") {
             setCardData((prev) => ({ ...prev, cvv: value.replace(/\D/g, "").slice(0, 4) }))
             return
@@ -206,10 +196,12 @@ export default function CheckoutPage() {
 
     const handleGoToPayment = async () => {
         if (!validateStep1()) return
+        setStep(2)
+    }
 
-        setLoading(true)
+    // Helper to create order after successful payment
+    const createOrderAfterPayment = async (paymentId: string, paymentMethod: string) => {
         try {
-            // Create order first
             const order = await OrderService.createOrder({
                 customer: {
                     name: formData.name,
@@ -228,133 +220,49 @@ export default function CheckoutPage() {
                 },
                 items: items,
                 shippingCost: shippingCost,
-                totalAmount: cartTotal + shippingCost
+                totalAmount: cartTotal + shippingCost,
             })
 
             if (order) {
                 setOrderId(order.id)
-                setStep(2)
+                await supabase
+                    .from("orders")
+                    .update({
+                        payment_id: paymentId,
+                        payment_method: paymentMethod,
+                        payment_status: "paid",
+                        status: "paid"
+                    })
+                    .eq("id", order.id)
             }
+            return order
         } catch (error) {
-            toast({ title: "Erro ao criar pedido", variant: "destructive" })
-        } finally {
-            setLoading(false)
+            console.error("Error creating order:", error)
+            throw error
         }
     }
 
+    // TODO: Implementar pagamento com InfinitePay
     const handlePayWithCard = async () => {
         if (!cardData.number || !cardData.expiry || !cardData.cvv || !cardData.name) {
             toast({ title: "Preencha todos os dados do cartão", variant: "destructive" })
             return
         }
 
-        setLoading(true)
-        try {
-            // Create card token using MercadoPago SDK
-            const mp = new window.MercadoPago(process.env.NEXT_PUBLIC_MP_PUBLIC_KEY || "")
-
-            const [expiryMonth, expiryYear] = cardData.expiry.split("/")
-
-            const cardToken = await mp.createCardToken({
-                cardNumber: cardData.number.replace(/\s/g, ""),
-                cardholderName: cardData.name,
-                cardExpirationMonth: expiryMonth,
-                cardExpirationYear: "20" + expiryYear,
-                securityCode: cardData.cvv,
-                identificationType: "CPF",
-                identificationNumber: formData.cpf.replace(/\D/g, "")
-            })
-
-            if (cardToken.error) {
-                throw new Error(cardToken.error)
-            }
-
-            // Process payment
-            const response = await fetch("/api/payment/card", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    transaction_amount: cartTotal + shippingCost,
-                    token: cardToken.id,
-                    description: `Pedido Atelier da Rubi`,
-                    installments: cardData.installments,
-                    payment_method_id: "master", // Will be detected by MP
-                    payer: {
-                        email: formData.email,
-                        identification: {
-                            type: "CPF",
-                            number: formData.cpf.replace(/\D/g, "")
-                        }
-                    },
-                    external_reference: orderId
-                })
-            })
-
-            const result = await response.json()
-
-            if (result.status === "approved") {
-                clearCart()
-                setStep(3)
-            } else if (result.status === "in_process" || result.status === "pending") {
-                toast({ title: "Pagamento em análise", description: "Aguarde a confirmação" })
-                clearCart()
-                setStep(3)
-            } else {
-                throw new Error(result.status_detail || "Pagamento recusado")
-            }
-        } catch (error: any) {
-            console.error("Card payment error:", error)
-            toast({
-                title: "Erro no pagamento",
-                description: error.message || "Verifique os dados do cartão",
-                variant: "destructive"
-            })
-        } finally {
-            setLoading(false)
-        }
+        toast({
+            title: "Pagamento em manutenção",
+            description: "O pagamento com cartão estará disponível em breve. Por favor, utilize o PIX.",
+            variant: "destructive"
+        })
     }
 
+    // TODO: Implementar pagamento PIX com InfinitePay
     const handlePayWithPix = async () => {
-        setLoading(true)
-        try {
-            const response = await fetch("/api/payment/pix", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    transaction_amount: cartTotal + shippingCost,
-                    description: `Pedido Atelier da Rubi`,
-                    payer: {
-                        email: formData.email,
-                        first_name: formData.name.split(" ")[0],
-                        last_name: formData.name.split(" ").slice(1).join(" "),
-                        identification: formData.cpf ? {
-                            type: "CPF",
-                            number: formData.cpf.replace(/\D/g, "")
-                        } : undefined
-                    },
-                    external_reference: orderId
-                })
-            })
-
-            const result = await response.json()
-
-            if (result.qr_code) {
-                setPixData({
-                    qr_code: result.qr_code,
-                    qr_code_base64: result.qr_code_base64
-                })
-            } else {
-                throw new Error("Erro ao gerar PIX")
-            }
-        } catch (error: any) {
-            toast({
-                title: "Erro ao gerar PIX",
-                description: error.message,
-                variant: "destructive"
-            })
-        } finally {
-            setLoading(false)
-        }
+        toast({
+            title: "Pagamento em manutenção",
+            description: "O pagamento via PIX estará disponível em breve.",
+            variant: "destructive"
+        })
     }
 
     const copyPixCode = () => {
@@ -366,93 +274,51 @@ export default function CheckoutPage() {
         }
     }
 
-    // SUCCESS STEP
-    if (step === 3) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 pt-24">
-                <div className="container mx-auto px-4 py-12 flex flex-col items-center justify-center text-center max-w-md">
-                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
-                        <CheckCircle className="h-10 w-10 text-green-600" />
-                    </div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Pedido Confirmado!</h1>
-                    <p className="text-gray-600 mb-4">
-                        Obrigado pela sua compra, {formData.name.split(" ")[0]}!
-                    </p>
-                    <p className="text-sm text-gray-500 mb-6">
-                        Código do pedido: <span className="font-mono font-bold">{orderId.slice(0, 8)}</span>
-                    </p>
-                    <div className="space-y-3 w-full">
-                        <Link href="/minha-conta" className="block">
-                            <Button className="w-full bg-pink-500 hover:bg-pink-600">
-                                Ver Meus Pedidos
-                            </Button>
-                        </Link>
-                        <Link href="/catalogo" className="block">
-                            <Button variant="outline" className="w-full">
-                                Continuar Comprando
-                            </Button>
-                        </Link>
-                    </div>
-                </div>
-            </div>
-        )
-    }
-
     return (
-        <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 pt-24 pb-12">
+        <div className="min-h-screen bg-gradient-to-b from-pink-50 to-white py-8">
             <div className="container mx-auto px-4 max-w-6xl">
-                <div className="mb-8">
-                    <Link href="/carrinho" className="text-sm text-gray-500 hover:text-gray-900 flex items-center">
-                        <ArrowLeft className="h-4 w-4 mr-1" /> Voltar ao Carrinho
+                {/* Header */}
+                <div className="flex items-center gap-4 mb-8">
+                    <Link href="/carrinho">
+                        <Button variant="ghost" size="icon">
+                            <ArrowLeft className="h-5 w-5" />
+                        </Button>
                     </Link>
+                    <h1 className="text-2xl font-bold text-gray-800">Finalizar Compra</h1>
                 </div>
 
                 {/* Progress Steps */}
-                <div className="flex items-center justify-center gap-4 mb-8">
-                    <div className={`flex items-center gap-2 ${step >= 1 ? "text-pink-600" : "text-gray-400"}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 1 ? "bg-pink-500 text-white" : "bg-gray-200"}`}>
-                            1
+                <div className="flex items-center justify-center mb-8">
+                    <div className="flex items-center gap-4">
+                        <div className={`flex items-center gap-2 ${step >= 1 ? "text-pink-500" : "text-gray-400"}`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? "bg-pink-500 text-white" : "bg-gray-200"}`}>
+                                {step > 1 ? <Check className="h-4 w-4" /> : "1"}
+                            </div>
+                            <span className="hidden sm:inline font-medium">Dados</span>
                         </div>
-                        <span className="hidden sm:inline font-medium">Dados</span>
-                    </div>
-                    <div className="w-12 h-0.5 bg-gray-200" />
-                    <div className={`flex items-center gap-2 ${step >= 2 ? "text-pink-600" : "text-gray-400"}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 2 ? "bg-pink-500 text-white" : "bg-gray-200"}`}>
-                            2
+                        <div className={`w-16 h-0.5 ${step >= 2 ? "bg-pink-500" : "bg-gray-200"}`} />
+                        <div className={`flex items-center gap-2 ${step >= 2 ? "text-pink-500" : "text-gray-400"}`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? "bg-pink-500 text-white" : "bg-gray-200"}`}>
+                                {step > 2 ? <Check className="h-4 w-4" /> : "2"}
+                            </div>
+                            <span className="hidden sm:inline font-medium">Pagamento</span>
                         </div>
-                        <span className="hidden sm:inline font-medium">Pagamento</span>
-                    </div>
-                    <div className="w-12 h-0.5 bg-gray-200" />
-                    <div className={`flex items-center gap-2 ${step >= 3 ? "text-pink-600" : "text-gray-400"}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= 3 ? "bg-pink-500 text-white" : "bg-gray-200"}`}>
-                            3
+                        <div className={`w-16 h-0.5 ${step >= 3 ? "bg-pink-500" : "bg-gray-200"}`} />
+                        <div className={`flex items-center gap-2 ${step >= 3 ? "text-pink-500" : "text-gray-400"}`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? "bg-pink-500 text-white" : "bg-gray-200"}`}>
+                                {step >= 3 ? <Check className="h-4 w-4" /> : "3"}
+                            </div>
+                            <span className="hidden sm:inline font-medium">Confirmação</span>
                         </div>
-                        <span className="hidden sm:inline font-medium">Confirmação</span>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid lg:grid-cols-3 gap-8">
+                    {/* Main Content */}
                     <div className="lg:col-span-2">
-                        {/* STEP 1: Customer Data */}
+                        {/* STEP 1: Personal Data & Address */}
                         {step === 1 && (
                             <div className="space-y-6">
-                                {/* Login suggestion */}
-                                {!user && (
-                                    <Card className="bg-blue-50 border-blue-200">
-                                        <CardContent className="p-4 flex items-center justify-between">
-                                            <div>
-                                                <p className="font-medium text-blue-900">Já tem uma conta?</p>
-                                                <p className="text-sm text-blue-700">Faça login para preencher automaticamente</p>
-                                            </div>
-                                            <Link href="/auth/login?redirect=/checkout">
-                                                <Button variant="outline" size="sm" className="border-blue-500 text-blue-600">
-                                                    Entrar
-                                                </Button>
-                                            </Link>
-                                        </CardContent>
-                                    </Card>
-                                )}
-
                                 {/* Personal Data */}
                                 <Card>
                                     <CardHeader>
@@ -461,51 +327,53 @@ export default function CheckoutPage() {
                                             Dados Pessoais
                                         </CardTitle>
                                     </CardHeader>
-                                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="name">Nome Completo *</Label>
-                                            <Input
-                                                id="name"
-                                                name="name"
-                                                value={formData.name}
-                                                onChange={handleInputChange}
-                                                placeholder="Maria Silva"
-                                                required
-                                            />
+                                    <CardContent className="space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="name">Nome Completo *</Label>
+                                                <Input
+                                                    id="name"
+                                                    name="name"
+                                                    value={formData.name}
+                                                    onChange={handleInputChange}
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="email">E-mail *</Label>
+                                                <Input
+                                                    id="email"
+                                                    name="email"
+                                                    type="email"
+                                                    value={formData.email}
+                                                    onChange={handleInputChange}
+                                                    required
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="email">E-mail *</Label>
-                                            <Input
-                                                id="email"
-                                                name="email"
-                                                type="email"
-                                                value={formData.email}
-                                                onChange={handleInputChange}
-                                                placeholder="seu@email.com"
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="phone">Telefone *</Label>
-                                            <Input
-                                                id="phone"
-                                                name="phone"
-                                                value={formData.phone}
-                                                onChange={handleInputChange}
-                                                placeholder="(00) 00000-0000"
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="cpf">CPF *</Label>
-                                            <Input
-                                                id="cpf"
-                                                name="cpf"
-                                                value={formData.cpf}
-                                                onChange={handleInputChange}
-                                                placeholder="000.000.000-00"
-                                                required
-                                            />
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="phone">Telefone *</Label>
+                                                <Input
+                                                    id="phone"
+                                                    name="phone"
+                                                    value={formData.phone}
+                                                    onChange={handleInputChange}
+                                                    placeholder="(00) 00000-0000"
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="cpf">CPF *</Label>
+                                                <Input
+                                                    id="cpf"
+                                                    name="cpf"
+                                                    value={formData.cpf}
+                                                    onChange={handleInputChange}
+                                                    placeholder="000.000.000-00"
+                                                    required
+                                                />
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -519,20 +387,18 @@ export default function CheckoutPage() {
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="zip">CEP *</Label>
-                                                <Input
-                                                    id="zip"
-                                                    name="zip"
-                                                    value={formData.zip}
-                                                    onChange={handleInputChange}
-                                                    onBlur={handleZipBlur}
-                                                    placeholder="00000-000"
-                                                    maxLength={9}
-                                                    required
-                                                />
-                                            </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="zip">CEP *</Label>
+                                            <Input
+                                                id="zip"
+                                                name="zip"
+                                                value={formData.zip}
+                                                onChange={handleInputChange}
+                                                onBlur={handleZipBlur}
+                                                placeholder="00000-000"
+                                                maxLength={9}
+                                                required
+                                            />
                                         </div>
                                         <div className="grid grid-cols-3 gap-4">
                                             <div className="col-span-2 space-y-2">
@@ -617,6 +483,7 @@ export default function CheckoutPage() {
                         {/* STEP 2: Payment */}
                         {step === 2 && (
                             <div className="space-y-6">
+                                {/* Payment Methods */}
                                 <Card>
                                     <CardHeader>
                                         <CardTitle className="flex items-center gap-2">
@@ -628,6 +495,15 @@ export default function CheckoutPage() {
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent>
+                                        {/* Maintenance Notice */}
+                                        <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+                                            <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
+                                            <div>
+                                                <p className="font-medium text-amber-800">Sistema de pagamento em manutenção</p>
+                                                <p className="text-sm text-amber-700">Estamos atualizando nossa plataforma de pagamento. Em breve você poderá pagar com PIX e Cartão.</p>
+                                            </div>
+                                        </div>
+
                                         <RadioGroup
                                             value={paymentMethod}
                                             onValueChange={(v) => setPaymentMethod(v as "card" | "pix")}
@@ -639,7 +515,7 @@ export default function CheckoutPage() {
                                                     <CreditCard className="h-5 w-5 text-gray-600" />
                                                     <div>
                                                         <p className="font-medium">Cartão de Crédito</p>
-                                                        <p className="text-sm text-gray-500">Em até 12x sem juros</p>
+                                                        <p className="text-sm text-gray-500">Em até 12x</p>
                                                     </div>
                                                 </Label>
                                             </div>
@@ -662,18 +538,54 @@ export default function CheckoutPage() {
                                     <Card>
                                         <CardHeader>
                                             <CardTitle>Dados do Cartão</CardTitle>
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <span className="text-xs text-gray-500">Aceitamos:</span>
+                                                <div className="flex gap-1">
+                                                    {["visa", "mastercard", "amex", "elo", "hipercard"].map((brand) => (
+                                                        <div
+                                                            key={brand}
+                                                            className={`w-10 h-6 rounded border flex items-center justify-center text-[10px] font-bold uppercase transition-all ${cardBrand === brand
+                                                                ? "border-pink-500 bg-pink-50 text-pink-600 scale-110"
+                                                                : "border-gray-200 bg-gray-50 text-gray-400"
+                                                                }`}
+                                                        >
+                                                            {brand === "visa" && "VISA"}
+                                                            {brand === "mastercard" && "MC"}
+                                                            {brand === "amex" && "AMEX"}
+                                                            {brand === "elo" && "ELO"}
+                                                            {brand === "hipercard" && "HIPER"}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
                                             <div className="space-y-2">
                                                 <Label htmlFor="cardNumber">Número do Cartão</Label>
-                                                <Input
-                                                    id="cardNumber"
-                                                    name="number"
-                                                    value={cardData.number}
-                                                    onChange={handleCardInputChange}
-                                                    placeholder="0000 0000 0000 0000"
-                                                    maxLength={19}
-                                                />
+                                                <div className="relative">
+                                                    <Input
+                                                        id="cardNumber"
+                                                        name="number"
+                                                        value={cardData.number}
+                                                        onChange={handleCardInputChange}
+                                                        placeholder="0000 0000 0000 0000"
+                                                        maxLength={19}
+                                                        className="pr-16"
+                                                    />
+                                                    {cardBrand && (
+                                                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                            <div className={`px-2 py-1 rounded text-xs font-bold uppercase ${cardBrand === "visa" ? "bg-blue-100 text-blue-700" :
+                                                                cardBrand === "mastercard" ? "bg-red-100 text-red-700" :
+                                                                    cardBrand === "amex" ? "bg-blue-100 text-blue-700" :
+                                                                        cardBrand === "elo" ? "bg-yellow-100 text-yellow-700" :
+                                                                            cardBrand === "hipercard" ? "bg-orange-100 text-orange-700" :
+                                                                                "bg-gray-100 text-gray-700"
+                                                                }`}>
+                                                                {cardBrand === "mastercard" ? "MC" : cardBrand}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2">
@@ -720,89 +632,96 @@ export default function CheckoutPage() {
                                                 >
                                                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
                                                         <option key={n} value={n}>
-                                                            {n}x de {formatCurrency((cartTotal + shippingCost) / n)} sem juros
+                                                            {n}x de {formatCurrency((cartTotal + shippingCost) / n)} {n === 1 ? "à vista" : "sem juros"}
                                                         </option>
                                                     ))}
                                                 </select>
                                             </div>
+
                                             <Button
                                                 onClick={handlePayWithCard}
-                                                className="w-full bg-green-600 hover:bg-green-700 h-12 text-lg"
+                                                className="w-full bg-pink-500 hover:bg-pink-600 h-12"
                                                 disabled={loading}
                                             >
-                                                {loading ? (
-                                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                                ) : (
-                                                    <>
-                                                        <Lock className="h-4 w-4 mr-2" />
-                                                        Pagar {formatCurrency(cartTotal + shippingCost)}
-                                                    </>
-                                                )}
+                                                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : `Pagar ${formatCurrency(cartTotal + shippingCost)}`}
                                             </Button>
                                         </CardContent>
                                     </Card>
                                 )}
 
-                                {/* PIX */}
-                                {paymentMethod === "pix" && (
+                                {/* PIX Form */}
+                                {paymentMethod === "pix" && !pixData && (
                                     <Card>
                                         <CardHeader>
-                                            <CardTitle>Pagamento via PIX</CardTitle>
+                                            <CardTitle className="flex items-center gap-2">
+                                                <QrCode className="h-5 w-5 text-green-600" />
+                                                Pagamento via PIX
+                                            </CardTitle>
+                                            <CardDescription>
+                                                Pagamento instantâneo e seguro
+                                            </CardDescription>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
-                                            {!pixData ? (
-                                                <div className="text-center py-8">
-                                                    <QrCode className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                                                    <p className="text-gray-600 mb-4">
-                                                        Clique no botão abaixo para gerar o código PIX
-                                                    </p>
-                                                    <Button
-                                                        onClick={handlePayWithPix}
-                                                        className="bg-green-600 hover:bg-green-700"
-                                                        disabled={loading}
-                                                    >
-                                                        {loading ? (
-                                                            <Loader2 className="h-5 w-5 animate-spin" />
-                                                        ) : (
-                                                            "Gerar PIX"
-                                                        )}
-                                                    </Button>
-                                                </div>
-                                            ) : (
-                                                <div className="text-center space-y-4">
-                                                    {pixData.qr_code_base64 && (
-                                                        <div className="flex justify-center">
-                                                            <Image
-                                                                src={`data:image/png;base64,${pixData.qr_code_base64}`}
-                                                                alt="QR Code PIX"
-                                                                width={200}
-                                                                height={200}
-                                                                className="border rounded-lg"
-                                                            />
-                                                        </div>
-                                                    )}
-                                                    <p className="text-sm text-gray-600">
-                                                        Escaneie o QR Code ou copie o código abaixo
-                                                    </p>
-                                                    <div className="bg-gray-50 p-3 rounded-lg">
-                                                        <code className="text-xs break-all block mb-2">
-                                                            {pixData.qr_code?.slice(0, 50)}...
-                                                        </code>
+                                            <div className="bg-gray-50 p-4 rounded-lg">
+                                                <p className="text-sm text-gray-600">
+                                                    Ao clicar em &quot;Gerar PIX&quot;, você receberá um QR Code para realizar o pagamento.
+                                                    O pedido será confirmado automaticamente após a transferência.
+                                                </p>
+                                            </div>
+                                            <Button
+                                                onClick={handlePayWithPix}
+                                                className="w-full bg-green-600 hover:bg-green-700 h-12"
+                                                disabled={loading}
+                                            >
+                                                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Gerar PIX"}
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+                                )}
+
+                                {/* PIX QR Code Display */}
+                                {paymentMethod === "pix" && pixData && (
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="flex items-center gap-2 text-green-600">
+                                                <CheckCircle className="h-5 w-5" />
+                                                PIX Gerado com Sucesso
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4">
+                                            <div className="flex flex-col items-center gap-4">
+                                                {pixData.qr_code_base64 && (
+                                                    <Image
+                                                        src={`data:image/png;base64,${pixData.qr_code_base64}`}
+                                                        alt="QR Code PIX"
+                                                        width={200}
+                                                        height={200}
+                                                        className="border rounded-lg"
+                                                    />
+                                                )}
+                                                <div className="w-full">
+                                                    <p className="text-sm text-gray-500 mb-2">Ou copie o código:</p>
+                                                    <div className="flex gap-2">
+                                                        <Input
+                                                            value={pixData.qr_code || ""}
+                                                            readOnly
+                                                            className="text-xs"
+                                                        />
                                                         <Button
-                                                            onClick={copyPixCode}
                                                             variant="outline"
-                                                            size="sm"
-                                                            className="gap-2"
+                                                            onClick={copyPixCode}
+                                                            className="shrink-0"
                                                         >
-                                                            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                                                            {copied ? "Copiado!" : "Copiar código"}
+                                                            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                                                         </Button>
                                                     </div>
-                                                    <p className="text-sm text-gray-500">
-                                                        Após o pagamento, você será notificado automaticamente
-                                                    </p>
                                                 </div>
-                                            )}
+                                            </div>
+                                            <div className="bg-amber-50 p-4 rounded-lg">
+                                                <p className="text-sm text-amber-800">
+                                                    ⏱️ O PIX expira em 30 minutos. Após o pagamento, você receberá a confirmação por e-mail.
+                                                </p>
+                                            </div>
                                         </CardContent>
                                     </Card>
                                 )}
@@ -817,64 +736,121 @@ export default function CheckoutPage() {
                                 </Button>
                             </div>
                         )}
-                    </div>
 
-                    {/* Order Summary */}
-                    <div className="lg:col-span-1">
-                        <Card className="sticky top-24">
-                            <CardHeader>
-                                <CardTitle>Resumo do Pedido</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {items.map((item) => (
-                                    <div key={`${item.id}-${item.customizationName}`} className="flex gap-3">
-                                        <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden relative flex-shrink-0">
-                                            <Image
-                                                src={item.images[0]?.image_url || "/placeholder.svg"}
-                                                alt={item.name}
-                                                fill
-                                                className="object-cover"
-                                            />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-medium text-sm truncate">{item.name}</p>
-                                            {item.customizationName && (
-                                                <p className="text-xs text-pink-600">Bordado: {item.customizationName}</p>
-                                            )}
-                                            <p className="text-sm text-gray-600">
-                                                {item.quantity}x {formatCurrency(Number(item.price))}
+                        {/* STEP 3: Success */}
+                        {step === 3 && (
+                            <Card className="text-center py-12">
+                                <CardContent className="space-y-6">
+                                    <div className="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+                                        <CheckCircle className="h-10 w-10 text-green-600" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                                            Pedido Confirmado!
+                                        </h2>
+                                        <p className="text-gray-600">
+                                            Obrigada por comprar no Atelier da Rubi
+                                        </p>
+                                        {orderId && (
+                                            <p className="text-sm text-gray-500 mt-2">
+                                                Número do pedido: <span className="font-mono font-bold">{orderId.slice(0, 8).toUpperCase()}</span>
                                             </p>
+                                        )}
+                                    </div>
+                                    <div className="bg-pink-50 p-4 rounded-lg">
+                                        <p className="text-sm text-pink-800">
+                                            📧 Enviamos um e-mail de confirmação com os detalhes do seu pedido.
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-4 justify-center">
+                                        <Link href="/catalogo">
+                                            <Button variant="outline">
+                                                Continuar Comprando
+                                            </Button>
+                                        </Link>
+                                        <Link href="/minha-conta">
+                                            <Button className="bg-pink-500 hover:bg-pink-600">
+                                                Ver Meus Pedidos
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+
+                    {/* Order Summary Sidebar */}
+                    {step !== 3 && (
+                        <div className="lg:col-span-1">
+                            <Card className="sticky top-4">
+                                <CardHeader>
+                                    <CardTitle>Resumo do Pedido</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {/* Items */}
+                                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                                        {items.map((item) => (
+                                            <div key={item.product.id} className="flex gap-3">
+                                                <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                                                    {item.product.images?.[0]?.image_url ? (
+                                                        <Image
+                                                            src={item.product.images[0].image_url}
+                                                            alt={item.product.name}
+                                                            width={64}
+                                                            height={64}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                                            <CreditCard className="h-6 w-6" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-gray-800 truncate">
+                                                        {item.product.name}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        Qtd: {item.quantity}
+                                                    </p>
+                                                    <p className="text-sm font-medium text-pink-600">
+                                                        {formatCurrency(item.product.price * item.quantity)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <Separator />
+
+                                    {/* Totals */}
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-600">Subtotal</span>
+                                            <span>{formatCurrency(cartTotal)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-600">Frete</span>
+                                            <span>{shippingCost > 0 ? formatCurrency(shippingCost) : "A calcular"}</span>
+                                        </div>
+                                        <Separator />
+                                        <div className="flex justify-between font-bold text-lg">
+                                            <span>Total</span>
+                                            <span className="text-pink-600">{formatCurrency(cartTotal + shippingCost)}</span>
                                         </div>
                                     </div>
-                                ))}
 
-                                <Separator />
-
-                                <div className="space-y-2 text-sm">
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-600">Subtotal</span>
-                                        <span>{formatCurrency(cartTotal)}</span>
+                                    {/* Security Badge */}
+                                    <div className="bg-gray-50 p-3 rounded-lg flex items-center gap-2">
+                                        <ShieldCheck className="h-5 w-5 text-green-600" />
+                                        <span className="text-xs text-gray-600">
+                                            Compra 100% segura
+                                        </span>
                                     </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-600">Frete</span>
-                                        <span>{shippingCost > 0 ? formatCurrency(shippingCost) : "A calcular"}</span>
-                                    </div>
-                                </div>
-
-                                <Separator />
-
-                                <div className="flex justify-between font-bold text-lg">
-                                    <span>Total</span>
-                                    <span className="text-pink-600">{formatCurrency(cartTotal + shippingCost)}</span>
-                                </div>
-
-                                <div className="bg-green-50 p-3 rounded-lg flex items-center gap-2 text-green-700 text-sm">
-                                    <ShieldCheck className="h-4 w-4" />
-                                    <span>Compra 100% segura</span>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

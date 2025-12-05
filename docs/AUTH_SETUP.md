@@ -60,9 +60,9 @@ No arquivo `.env.local`, adicione:
 NEXT_PUBLIC_SUPABASE_URL=sua_url_aqui
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anon_aqui
 
-# Mercado Pago
-MP_ACCESS_TOKEN=seu_access_token
-NEXT_PUBLIC_MP_PUBLIC_KEY=sua_public_key
+# InfinitePay (a configurar)
+# INFINITEPAY_API_KEY=sua_api_key
+# INFINITEPAY_SECRET=seu_secret
 ```
 
 ---
@@ -96,9 +96,8 @@ NEXT_PUBLIC_MP_PUBLIC_KEY=sua_public_key
 | `app/auth/register/page.tsx` | Página de registro |
 | `app/auth/callback/route.ts` | Callback OAuth |
 | `app/minha-conta/page.tsx` | Página de conta |
-| `app/checkout/page.tsx` | Checkout transparente |
-| `app/api/payment/card/route.ts` | API pagamento cartão |
-| `app/api/payment/pix/route.ts` | API pagamento PIX |
+| `app/checkout/page.tsx` | Checkout (pagamento em manutenção) |
+| `app/api/payment/route.ts` | API pagamento (InfinitePay - a configurar) |
 | `supabase/migrations/add_user_auth_tables.sql` | Migração SQL |
 
 ---

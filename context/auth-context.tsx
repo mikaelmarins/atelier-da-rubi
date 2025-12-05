@@ -53,10 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true)
 
     // Load user profile and addresses
-    const loadUserData = async (userId: string) => {
+    const loadUserData = async (userId: string, userEmail?: string, userMetadata?: any) => {
         try {
             // Load profile
-            const { data: profileData } = await supabase
+            const { data: profileData, error: profileError } = await supabase
                 .from("user_profiles")
                 .select("*")
                 .eq("id", userId)
@@ -64,6 +64,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             if (profileData) {
                 setProfile(profileData)
+            } else if (profileError?.code === 'PGRST116') {
+                // Profile not found - create one
+                const userName = userMetadata?.full_name || userMetadata?.name || userEmail?.split('@')[0] || ''
+
+                const { data: newProfile, error: insertError } = await supabase
+                    .from("user_profiles")
+                    .insert({
+                        id: userId,
+                        email: userEmail,
+                        name: userName,
+                        phone: null
+                    })
+                    .select()
+                    .single()
+
+                if (newProfile) {
+                    setProfile(newProfile)
+                } else if (insertError) {
+                    console.error("Error creating profile:", insertError)
+                }
             }
 
             // Load addresses
@@ -87,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(session)
             setUser(session?.user ?? null)
             if (session?.user) {
-                loadUserData(session.user.id)
+                loadUserData(session.user.id, session.user.email, session.user.user_metadata)
             }
             setLoading(false)
         })
@@ -99,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setUser(session?.user ?? null)
 
                 if (session?.user) {
-                    await loadUserData(session.user.id)
+                    await loadUserData(session.user.id, session.user.email, session.user.user_metadata)
                 } else {
                     setProfile(null)
                     setAddresses([])
@@ -121,19 +141,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
             })
 
-            if (error) throw error
+            if (error) {
+                console.error("Supabase Auth signUp error:", error)
+                throw error
+            }
 
-            // Create profile
+            // Try to create profile (don't fail if table doesn't exist yet)
             if (data.user) {
-                await supabase.from("user_profiles").insert({
-                    id: data.user.id,
-                    email: email,
-                    name: name
-                })
+                try {
+                    const { error: profileError } = await supabase.from("user_profiles").insert({
+                        id: data.user.id,
+                        email: email,
+                        name: name
+                    })
+                    if (profileError) {
+                        console.warn("Profile creation failed (table may not exist):", profileError)
+                    }
+                } catch (profileErr) {
+                    console.warn("Profile creation error:", profileErr)
+                }
             }
 
             return { error: null }
         } catch (error) {
+            console.error("SignUp catch error:", error)
             return { error: error as Error }
         }
     }

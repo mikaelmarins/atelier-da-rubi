@@ -1,17 +1,21 @@
-Buyer Test User
-    User ID: 3032070181
-    Usuário: TESTUSER4942272054312785531
-    Senha: o7sEUPV3i5
+# Dados de Teste - Pagamentos
 
-Seller Test User
-    User ID: 3032062709
-    Usuário: TESTUSER5501334752205174412
-    Senha: chvdDwQ1W9
+Este arquivo será atualizado quando a integração com InfinitePay estiver configurada.
 
-Carões de Teste
-    Mastercard / 5031 4332 1540 6351 / 123 / 11/30
-    Visa / 4235 6477 2802 5682 / 123 / 11/30
-    American Express / 3753 651535 56885 / 1234 / 11/30
-    Elo Debito / 5067 7667 8388 8311 / 123 / 11/30
+## InfinitePay
+- Documentação: https://developers.infinitepay.io/
+- Status: Aguardando configuração da API
 
-CPF teste: 12345678909
+## Configuração Necessária
+
+No `.env.local`, adicione:
+```env
+INFINITEPAY_API_KEY=sua_api_key_aqui
+INFINITEPAY_SECRET=seu_secret_aqui
+```
+
+## Funcionalidades a Implementar
+- [ ] Pagamento via PIX
+- [ ] Pagamento via Cartão de Crédito
+- [ ] Webhook para confirmação de pagamento
+- [ ] Split de pagamento (se disponível)
