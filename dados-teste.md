@@ -9,10 +9,10 @@ Este arquivo será atualizado quando a integração com InfinitePay estiver conf
 ## Configuração Necessária
 
 No `.env.local`, adicione:
-```env
+\`\`\`env
 INFINITEPAY_API_KEY=sua_api_key_aqui
 INFINITEPAY_SECRET=seu_secret_aqui
-```
+\`\`\`
 
 ## Funcionalidades a Implementar
 - [ ] Pagamento via PIX

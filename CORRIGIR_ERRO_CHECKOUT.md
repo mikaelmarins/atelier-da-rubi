@@ -14,7 +14,7 @@ Para corrigir isso e permitir que o checkout funcione (inclusive para visitantes
 
 ## Código SQL para Rodar:
 
-```sql
+\`\`\`sql
 -- 1. Primeiro, vamos limpar as tabelas para evitar conflitos de tipos
 -- ATENÇÃO: Isso apagará os pedidos de teste existentes.
 DROP TABLE IF EXISTS public.order_items CASCADE;
@@ -78,7 +78,7 @@ CREATE POLICY "Users can view own order items" ON public.order_items FOR SELECT 
 -- Nota: Em produção real, seria ideal restringir isso via token, mas para MVP isso resolve o erro de "não ver o pedido" após criar.
 CREATE POLICY "Enable read access for all users" ON public.orders FOR SELECT USING (true);
 CREATE POLICY "Enable read access for all users" ON public.order_items FOR SELECT USING (true);
-```
+\`\`\`
 
 ## Após rodar o script:
 1.  Tente fazer uma compra novamente no site.
