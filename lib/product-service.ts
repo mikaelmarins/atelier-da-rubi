@@ -96,8 +96,19 @@ export class ProductServiceSupabase {
         throw error
       }
 
-      console.log("[v0] Products fetched successfully:", products?.length || 0)
-      return (products as any) || []
+      // Remover duplicatas (produtos com mesmo ID)
+      const seen = new Set<number>()
+      const uniqueProducts = (products || []).filter((product: any) => {
+        if (seen.has(product.id)) {
+          console.warn(`[v0] Duplicate product found with ID ${product.id}, removing...`)
+          return false
+        }
+        seen.add(product.id)
+        return true
+      })
+
+      console.log("[v0] Products fetched successfully:", uniqueProducts.length)
+      return uniqueProducts as any
     } catch (error) {
       console.error("[v0] Error in getAllProducts:", error)
       throw error
@@ -252,28 +263,39 @@ export class ProductServiceSupabase {
   // Deletar produto
   static async deleteProduct(id: number): Promise<void> {
     try {
+      console.log("[deleteProduct] Starting delete for ID:", id)
+
       // 1. Buscar imagens para deletar do storage
-      const { data: images } = await supabase.from("product_images").select("image_url").eq("product_id", id)
+      const { data: images, error: imagesError } = await supabase.from("product_images").select("image_url").eq("product_id", id)
+      console.log("[deleteProduct] Found images:", images?.length || 0, "Error:", imagesError)
 
       // 2. Deletar imagens do storage
       if (images && images.length > 0) {
         for (const image of images) {
           const path = image.image_url.split("/product-images/")[1]
           if (path) {
-            await supabase.storage.from("product-images").remove([path])
+            const { error: storageError } = await supabase.storage.from("product-images").remove([path])
+            console.log("[deleteProduct] Deleted storage image:", path, "Error:", storageError)
           }
         }
       }
 
-      // 3. Deletar produto (cascade vai deletar as referências de imagens)
-      const { error } = await supabase.from("products").delete().eq("id", id)
+      // 3. Deletar registros de product_images primeiro
+      const { error: imageDeleteError } = await supabase.from("product_images").delete().eq("product_id", id)
+      console.log("[deleteProduct] Deleted product_images. Error:", imageDeleteError)
+
+      // 4. Deletar produto
+      const { error, data } = await supabase.from("products").delete().eq("id", id).select()
+      console.log("[deleteProduct] Delete result. Data:", data, "Error:", error)
 
       if (error) {
-        console.error("Error deleting product:", error)
-        throw new Error("Falha ao deletar produto")
+        console.error("[deleteProduct] Error deleting product:", error)
+        throw new Error("Falha ao deletar produto: " + error.message)
       }
+
+      console.log("[deleteProduct] Successfully deleted product ID:", id)
     } catch (error) {
-      console.error("Error in deleteProduct:", error)
+      console.error("[deleteProduct] Error in deleteProduct:", error)
       throw error
     }
   }

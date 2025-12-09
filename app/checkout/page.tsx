@@ -789,8 +789,8 @@ export default function CheckoutPage() {
                                 <CardContent className="space-y-4">
                                     {/* Items */}
                                     <div className="space-y-3 max-h-60 overflow-y-auto">
-                                        {items.map((item) => (
-                                            <div key={item.product.id} className="flex gap-3">
+                                        {items.map((item, index) => (
+                                            <div key={`checkout-${item.product.id}-${item.customization || 'base'}-${index}`} className="flex gap-3">
                                                 <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden shrink-0">
                                                     {item.product.images?.[0]?.image_url ? (
                                                         <Image
