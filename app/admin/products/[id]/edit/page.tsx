@@ -21,6 +21,7 @@ import { useProduct } from "@/hooks/use-products"
 import { ProductServiceSupabase, type ProductWithImages } from "@/lib/product-service"
 import { supabase } from "@/lib/supabase"
 import DetailsEditor from "@/components/admin/details-editor"
+import ColorsEditor, { ProductColor } from "@/components/admin/colors-editor"
 import { useToast } from "@/hooks/use-toast"
 
 type Category = { id: number; name: string }
@@ -51,7 +52,21 @@ function EditProductPageContent() {
 
   useEffect(() => {
     if (fetchedProduct) {
-      setFormData(fetchedProduct)
+      // Lógica de compatibilidade: Se os campos novos estiverem vazios mas existirem no details (legado),
+      // preenchemos o formData com os dados do details para permitir a migração ao salvar.
+      const legacyDetails = fetchedProduct.details || {}
+
+      setFormData({
+        ...fetchedProduct,
+        material: fetchedProduct.material || legacyDetails.material || "",
+        tamanhos: fetchedProduct.tamanhos || legacyDetails.tamanhos || [],
+        cuidados: fetchedProduct.cuidados || legacyDetails.cuidados || "",
+        tempo_producao: fetchedProduct.tempo_producao || legacyDetails.tempo_producao || "",
+
+        has_colors: fetchedProduct.has_colors || false,
+        colors: fetchedProduct.colors || [],
+        is_secondary_color: fetchedProduct.is_secondary_color || false,
+      })
     }
   }, [fetchedProduct])
 
@@ -65,7 +80,7 @@ function EditProductPageContent() {
     try {
       // Converter preço se for string formatada
       const priceValue = typeof formData.price === 'string'
-        ? Number(formData.price.replace(/\D/g, '')) / 100
+        ? Number((formData.price as string).replace(/\D/g, '')) / 100
         : formData.price
 
       // 1. Atualizar dados do produto e adicionar novas imagens
@@ -88,6 +103,10 @@ function EditProductPageContent() {
           width: formData.width,
           length: formData.length,
           is_customizable: formData.is_customizable,
+
+          has_colors: formData.has_colors,
+          colors: formData.colors,
+          is_secondary_color: formData.is_secondary_color,
         },
         newImages
       )
@@ -495,6 +514,39 @@ function EditProductPageContent() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Seção de Cores */}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="has_colors"
+                    checked={formData.has_colors || false}
+                    onCheckedChange={(checked) => handleInputChange("has_colors", checked)}
+                  />
+                  <Label htmlFor="has_colors" className="font-semibold text-base">Este produto tem opções de cores?</Label>
+                </div>
+
+                {formData.has_colors && (
+                  <div className="pl-6 space-y-4 border-l-2 border-pink-100">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="is_secondary_color"
+                        checked={formData.is_secondary_color || false}
+                        onCheckedChange={(checked) => handleInputChange("is_secondary_color", checked)}
+                      />
+                      <Label htmlFor="is_secondary_color">Permitir escolha de cor secundária?</Label>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Cores Disponíveis</Label>
+                      <ColorsEditor
+                        colors={formData.colors || []}
+                        onChange={(newColors) => handleInputChange("colors", newColors)}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

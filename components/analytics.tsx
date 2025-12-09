@@ -7,6 +7,7 @@ declare global {
   interface Window {
     gtag: (command: string, targetId: string, config?: any) => void
     fbq: (command: string, event: string, data?: any) => void
+    dataLayer: any[]
   }
 }
 

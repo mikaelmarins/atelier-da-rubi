@@ -3,6 +3,7 @@
 import type React from "react"
 import { useState } from "react"
 import { ArrowLeft, Save, Loader2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,6 +15,7 @@ import { supabase } from "@/lib/supabase"
 
 function NewCategoryPageContent() {
     const router = useRouter()
+    const { toast } = useToast()
     const [loading, setLoading] = useState(false)
     const [name, setName] = useState("")
 
@@ -37,11 +39,18 @@ function NewCategoryPageContent() {
 
             if (error) throw error
 
-            alert("Categoria criada com sucesso!")
+            toast({
+                title: "Sucesso",
+                description: "Categoria criada com sucesso!",
+            })
             router.push("/admin/categories")
         } catch (error) {
             console.error("Error creating category:", error)
-            alert("Erro ao criar categoria. Verifique se o nome já existe.")
+            toast({
+                variant: "destructive",
+                title: "Erro ao criar",
+                description: "Verifique se o nome já existe.",
+            })
         } finally {
             setLoading(false)
         }

@@ -208,8 +208,8 @@ function AdminPageContent() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                  {recentProducts.map((product) => (
-                    <div key={product.id} className="group">
+                  {recentProducts.map((product, index) => (
+                    <div key={`dashboard-${product.id}-${index}`} className="group">
                       <div className="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
                         <div className="aspect-square relative">
                           <Image

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 
 export default function LoginForm() {
@@ -21,6 +22,7 @@ export default function LoginForm() {
   const [error, setError] = useState("")
 
   const { signIn } = useAuth()
+  const { toast } = useToast()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,12 +34,26 @@ export default function LoginForm() {
       const result = await signIn(formData.email, formData.password)
 
       if (!result.error) {
+        toast({
+          title: "Login bem-sucedido!",
+          description: "Redirecionando...",
+        })
         router.push("/admin")
       } else {
         setError(result.error.message || "Erro no login")
+        toast({
+          title: "Erro no login",
+          description: result.error.message || "Verifique suas credenciais.",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       setError("Erro interno. Tente novamente.")
+      toast({
+        title: "Erro interno",
+        description: "Ocorreu um erro. Tente novamente mais tarde.",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -59,42 +75,26 @@ export default function LoginForm() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <Card className="shadow-xl border-0">
-          <CardHeader className="text-center pb-8">
+        <Card className="shadow-xl">
+          <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full flex items-center justify-center">
-                <Heart className="h-8 w-8 text-white" />
-              </div>
+              <Heart className="h-10 w-10 text-pink-500" />
             </div>
-            <CardTitle className="text-2xl font-dancing font-bold text-gray-800">Atelier da Rubi</CardTitle>
-            <p className="text-gray-600 text-sm">Acesso Administrativo</p>
+            <CardTitle className="text-2xl font-bold text-gray-800">Acesso Administrativo</CardTitle>
           </CardHeader>
-
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm"
-                >
-                  {error}
-                </motion.div>
-              )}
-
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     id="email"
-                    type="email"
+                    placeholder="seu@email.com"
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
-                    placeholder="seu@email.com"
                     className="pl-10"
                     required
-                    disabled={loading}
                   />
                 </div>
               </div>
@@ -102,49 +102,51 @@ export default function LoginForm() {
               <div className="space-y-2">
                 <Label htmlFor="password">Senha</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
                     value={formData.password}
                     onChange={(e) => handleInputChange("password", e.target.value)}
-                    placeholder="••••••••"
                     className="pl-10 pr-10"
                     required
-                    disabled={loading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    disabled={loading}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
 
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-red-600 text-sm bg-red-100 p-3 rounded-md"
+                >
+                  {error}
+                </motion.div>
+              )}
+
               <Button
                 type="submit"
-                disabled={loading}
                 className="w-full bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white"
+                disabled={loading}
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Entrando...
-                  </>
-                ) : (
-                  "Entrar"
-                )}
+                {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Entrar
               </Button>
             </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-xs text-gray-500">Sistema de administração do Atelier da Rubi</p>
-            </div>
           </CardContent>
         </Card>
+
+        <p className="text-center text-sm text-gray-600 mt-6">
+          Sistema de administração do Atelier da Rubi
+        </p>
       </motion.div>
     </div>
   )

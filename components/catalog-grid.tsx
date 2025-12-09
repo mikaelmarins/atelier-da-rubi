@@ -127,8 +127,8 @@ export default function CatalogGrid() {
                   key={category.value}
                   onClick={() => setSelectedCategory(category.value)}
                   className={`block w-full text-left px-3 py-2 rounded-lg transition-colors ${selectedCategory === category.value
-                      ? "bg-pink-50 text-pink-700 font-medium"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    ? "bg-pink-50 text-pink-700 font-medium"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                     }`}
                 >
                   {category.label}
@@ -217,10 +217,10 @@ export default function CatalogGrid() {
         {/* Product Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8">
           <AnimatePresence mode="popLayout">
-            {filteredAndSortedProducts.map((product) => (
+            {filteredAndSortedProducts.map((product, index) => (
               <motion.div
                 layout
-                key={product.id}
+                key={`product-${product.id}-${index}`}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}

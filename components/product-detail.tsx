@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from "framer-motion"
 import { ArrowLeft, Share2, ShoppingCart, X, ChevronLeft, ChevronRight, ZoomIn, MessageCircle, Truck, ShieldCheck, Ruler, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
@@ -20,6 +21,11 @@ type Props = {
   productId: number
 }
 
+type ProductColor = {
+  name: string
+  hex: string
+}
+
 export default function ProductDetail({ productId }: Props) {
   const { product, loading } = useProduct(productId)
   const { products } = useProducts()
@@ -30,6 +36,8 @@ export default function ProductDetail({ productId }: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [relatedProducts, setRelatedProducts] = useState<any[]>([])
   const [customizationName, setCustomizationName] = useState("")
+  const [selectedColor, setSelectedColor] = useState<ProductColor | null>(null)
+  const [selectedSecondaryColor, setSelectedSecondaryColor] = useState<ProductColor | null>(null)
   const [isAdded, setIsAdded] = useState(false)
 
   useEffect(() => {
@@ -38,10 +46,11 @@ export default function ProductDetail({ productId }: Props) {
 
   useEffect(() => {
     if (product && products.length > 0) {
-      const related = products
-        .filter((p) => p.category === product.category && p.id !== productId)
+      // Mostrar apenas produtos em destaque
+      const featured = products
+        .filter((p) => p.featured && p.id !== productId)
         .slice(0, 4)
-      setRelatedProducts(related)
+      setRelatedProducts(featured)
     }
   }, [product, products, productId])
 
@@ -59,7 +68,35 @@ export default function ProductDetail({ productId }: Props) {
         return
       }
 
-      addToCart(product, 1, customizationName)
+      // Só exigir cor se o produto tiver cores E houver cores cadastradas
+      const productColors = Array.isArray(product.colors) ? product.colors : []
+      if (product.has_colors && productColors.length > 0) {
+        if (!selectedColor) {
+          toast({
+            title: "Selecione uma cor",
+            description: "Por favor, escolha a cor principal do produto.",
+            variant: "destructive"
+          })
+          return
+        }
+        if (product.is_secondary_color && !selectedSecondaryColor) {
+          toast({
+            title: "Selecione uma cor secundária",
+            description: "Por favor, escolha a cor secundária do produto.",
+            variant: "destructive"
+          })
+          return
+        }
+      }
+
+      const colorInfo = []
+      if (selectedColor) colorInfo.push(`Cor: ${selectedColor.name}`)
+      if (selectedSecondaryColor) colorInfo.push(`Detalhe: ${selectedSecondaryColor.name}`)
+      if (customizationName) colorInfo.push(`Bordado: ${customizationName}`)
+
+      const distinctCustomization = colorInfo.join(" | ")
+
+      addToCart(product, 1, distinctCustomization)
       setIsAdded(true)
 
       // Feedback visual mais rápido e toast com duração curta
@@ -205,23 +242,65 @@ export default function ProductDetail({ productId }: Props) {
           </div>
 
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6">
+
+            {/* Color Selection */}
+            {product.has_colors && Array.isArray(product.colors) && product.colors.length > 0 && (
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <Label className="text-base font-medium text-gray-900">
+                    Cor Principal: <span className="text-pink-600 font-normal">{selectedColor?.name}</span>
+                  </Label>
+                  <div className="flex flex-wrap gap-2">
+                    {product.colors.map((color: ProductColor, idx: number) => (
+                      <button
+                        key={`${color.name}-${idx}`}
+                        onClick={() => setSelectedColor(color)}
+                        className={`w-8 h-8 rounded-full border shadow-sm transition-transform hover:scale-110 relative ${selectedColor?.name === color.name ? "ring-2 ring-offset-2 ring-pink-500 scale-110" : ""
+                          }`}
+                        style={{ backgroundColor: color.hex }}
+                        title={color.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {product.is_secondary_color && (
+                  <div className="space-y-3 pt-2">
+                    <Label className="text-base font-medium text-gray-900">
+                      Cor Secundária: <span className="text-pink-600 font-normal">{selectedSecondaryColor?.name}</span>
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {product.colors.map((color: ProductColor, idx: number) => (
+                        <button
+                          key={`${color.name}-${idx}-sec`}
+                          onClick={() => setSelectedSecondaryColor(color)}
+                          className={`w-8 h-8 rounded-full border shadow-sm transition-transform hover:scale-110 relative ${selectedSecondaryColor?.name === color.name ? "ring-2 ring-offset-2 ring-pink-500 scale-110" : ""
+                            }`}
+                          style={{ backgroundColor: color.hex }}
+                          title={color.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Customization Input */}
             {product.is_customizable && (
               <div className="space-y-3">
                 <Label htmlFor="customization" className="text-base font-medium text-gray-900">
                   Personalização do Bordado
                 </Label>
-                <div className="relative">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Input
                     id="customization"
-                    placeholder="Digite o nome para bordar (Ex: Maria Alice)"
+                    placeholder="Digite o nome para bordar (Ex: Maria)"
                     value={customizationName}
                     onChange={(e) => setCustomizationName(e.target.value)}
-                    className="pl-4 pr-10 py-6 text-lg border-gray-200 focus:border-pink-300 focus:ring-pink-100"
+                    className="flex-1 py-6 text-lg border-gray-200 focus:border-pink-300 focus:ring-pink-100"
                   />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                    <span className="text-xs">Grátis</span>
-                  </div>
+                  <span className="text-xs text-green-600 font-medium sm:self-center whitespace-nowrap">Grátis</span>
                 </div>
                 <p className="text-xs text-gray-500">
                   * Verifique a grafia correta. O nome será bordado exatamente como digitado.
@@ -342,8 +421,8 @@ export default function ProductDetail({ productId }: Props) {
             Você também pode gostar
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {relatedProducts.map((related) => (
-              <Link key={related.id} href={`/catalogo/${related.id}`} className="group">
+            {relatedProducts.map((related, index) => (
+              <Link key={`related-${related.id}-${index}`} href={`/catalogo/${related.id}`} className="group">
                 <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all border border-gray-100">
                   <div className="aspect-square relative bg-gray-100 overflow-hidden">
                     <Image
@@ -370,7 +449,10 @@ export default function ProductDetail({ productId }: Props) {
 
       {/* Image Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-5xl w-full p-0 bg-black/95 border-none text-white">
+        <DialogContent className="max-w-5xl w-full p-0 bg-black/95 border-none text-white [&>button]:hidden">
+          <VisuallyHidden>
+            <DialogTitle>Imagem ampliada do produto</DialogTitle>
+          </VisuallyHidden>
           <div className="relative h-[80vh] w-full flex items-center justify-center">
             <Button
               variant="ghost"

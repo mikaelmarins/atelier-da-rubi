@@ -8,6 +8,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useProducts } from "@/hooks/use-products"
 import { formatCurrency } from "@/lib/utils"
+import { supabase } from "@/lib/supabase"
 
 export default function FeaturedCarousel() {
   const { products } = useProducts()
@@ -24,17 +25,38 @@ export default function FeaturedCarousel() {
   const minSwipeDistance = 50
 
   useEffect(() => {
-    const savedCarousel = localStorage.getItem("carousel-products")
-    if (savedCarousel) {
+    const loadCarouselConfig = async () => {
       try {
-        setFeaturedProductIds(JSON.parse(savedCarousel))
+        // 1. Tentar carregar do Supabase (prioridade máxima)
+        const { data, error } = await supabase
+          .from("carousel_config")
+          .select("product_id")
+          .order("display_order")
+
+        if (data && data.length > 0) {
+          setFeaturedProductIds(data.map((item) => item.product_id))
+          return
+        }
       } catch (error) {
-        console.error("Error loading carousel:", error)
-        setFeaturedProductIds(products.filter((p) => p.featured).map((p) => p.id))
+        console.error("Error loading carousel from Supabase:", error)
       }
-    } else {
+
+      // 2. Fallback para localStorage
+      const savedCarousel = localStorage.getItem("carousel-products")
+      if (savedCarousel) {
+        try {
+          setFeaturedProductIds(JSON.parse(savedCarousel))
+          return
+        } catch (error) {
+          console.error("Error parsing localStorage carousel:", error)
+        }
+      }
+
+      // 3. Fallback final: produtos marcados como destaque no banco
       setFeaturedProductIds(products.filter((p) => p.featured).map((p) => p.id))
     }
+
+    loadCarouselConfig()
   }, [products])
 
   const featuredItems = featuredProductIds
@@ -260,8 +282,8 @@ export default function FeaturedCarousel() {
                 key={index}
                 onClick={() => goToSlide(index)}
                 className={`transition-all duration-300 rounded-full ${index === currentIndex
-                    ? "w-6 h-2 bg-pink-500"
-                    : "w-2 h-2 bg-gray-300"
+                  ? "w-6 h-2 bg-pink-500"
+                  : "w-2 h-2 bg-gray-300"
                   }`}
               />
             ))}
@@ -369,8 +391,8 @@ export default function FeaturedCarousel() {
                 key={index}
                 onClick={() => goToSlide(index)}
                 className={`transition-all duration-300 rounded-full ${index === currentIndex
-                    ? "w-8 h-2.5 bg-pink-500"
-                    : "w-2.5 h-2.5 bg-gray-300 hover:bg-pink-300"
+                  ? "w-8 h-2.5 bg-pink-500"
+                  : "w-2.5 h-2.5 bg-gray-300 hover:bg-pink-300"
                   }`}
               />
             ))}

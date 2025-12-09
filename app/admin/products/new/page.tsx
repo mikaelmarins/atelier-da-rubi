@@ -18,6 +18,7 @@ import { ProductServiceSupabase } from "@/lib/product-service"
 import AuthGuard from "@/components/auth/auth-guard"
 import { supabase } from "@/lib/supabase"
 import DetailsEditor from "@/components/admin/details-editor"
+import ColorsEditor, { ProductColor } from "@/components/admin/colors-editor"
 import { useToast } from "@/hooks/use-toast"
 
 type Category = { id: number; name: string }
@@ -38,12 +39,21 @@ function NewProductPageContent() {
     category: "",
     category_id: null as number | null,
     featured: false,
-    details: {
-      material: "",
-      tamanhos: [] as string[],
-      cuidados: "",
-      tempo_producao: "",
-    } as Record<string, any>,
+
+    // Atributos de primeiro nível (colunas da tabela)
+    material: "",
+    tamanhos: [] as string[],
+    cuidados: "",
+    tempo_producao: "",
+
+    // Cores
+    has_colors: false,
+    colors: [] as ProductColor[],
+    is_secondary_color: false,
+
+    // JSONB para extras
+    details: {} as Record<string, any>,
+
     weight: "",
     height: "",
     width: "",
@@ -86,19 +96,34 @@ function NewProductPageContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (imageFiles.length === 0) {
-      toast({
-        title: "Imagem obrigatória",
-        description: "Adicione pelo menos uma imagem do produto.",
-        variant: "destructive",
-      })
-      return
-    }
+    // TEMPORÁRIO: Validação de imagem desabilitada para testes
+    // if (imageFiles.length === 0) {
+    //   toast({
+    //     title: "Imagem obrigatória",
+    //     description: "Adicione pelo menos uma imagem do produto.",
+    //     variant: "destructive",
+    //   })
+    //   return
+    // }
+
+    // Log para debug
+    console.log("[DEBUG] Form Data:", {
+      name: formData.name,
+      description: formData.description,
+      price: formData.price,
+      category_id: formData.category_id,
+    })
 
     if (!formData.name || !formData.description || !formData.price || !formData.category_id) {
+      const missing = []
+      if (!formData.name) missing.push("Nome")
+      if (!formData.description) missing.push("Descrição")
+      if (!formData.price) missing.push("Preço")
+      if (!formData.category_id) missing.push("Categoria")
+
       toast({
         title: "Campos obrigatórios",
-        description: "Preencha todos os campos marcados com *.",
+        description: `Preencha: ${missing.join(", ")}`,
         variant: "destructive",
       })
       return
@@ -118,12 +143,33 @@ function NewProductPageContent() {
 
     try {
       const product = await ProductServiceSupabase.createProduct({
-        ...formData,
+        // Campos básicos
+        name: formData.name,
+        description: formData.description,
         price: priceNumber,
+        category: formData.category,
+        category_id: formData.category_id,
+        featured: formData.featured,
+
+        // Atributos (colunas reais)
+        material: formData.material,
+        tamanhos: formData.tamanhos,
+        cuidados: formData.cuidados,
+        tempo_producao: formData.tempo_producao,
+
+        has_colors: formData.has_colors,
+        colors: formData.colors,
+        is_secondary_color: formData.is_secondary_color,
+
+        // Dimensões e outros
         weight: Number(formData.weight) || 0,
         height: Number(formData.height) || 0,
         width: Number(formData.width) || 0,
-        length: Number(formData.length) || 0
+        length: Number(formData.length) || 0,
+        is_customizable: formData.is_customizable,
+
+        // JSONB apenas para extras dinâmicos
+        details: formData.details
       }, imageFiles)
 
       if (product) {
@@ -152,57 +198,47 @@ function NewProductPageContent() {
   }
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   const handleCategoryChange = (value: string) => {
-    const categoryId = Number(value)
-    const category = categories.find(c => c.id === categoryId)
-    setFormData(prev => ({
-      ...prev,
-      category_id: categoryId,
-      category: category?.name || ""
-    }))
+    const category = categories.find((c) => c.id.toString() === value)
+    if (category) {
+      setFormData((prev) => ({
+        ...prev,
+        category: category.name, // Nome da categoria para retrocompatibilidade
+        category_id: category.id,
+      }))
+    }
   }
 
-  const handleDetailsChange = (field: string, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      details: {
-        ...prev.details,
-        [field]: value,
-      },
-    }))
-  }
-
+  // Manipular tamanhos (array)
   const handleTamanhosChange = (tamanho: string, checked: boolean) => {
+    setFormData((prev) => {
+      const currentTamanhos = prev.tamanhos || []
+      let newTamanhos
+
+      if (checked) {
+        newTamanhos = [...currentTamanhos, tamanho]
+      } else {
+        newTamanhos = currentTamanhos.filter((t) => t !== tamanho)
+      }
+
+      return { ...prev, tamanhos: newTamanhos }
+    })
+  }
+
+  // Manipular detalhes dinâmicos (DetailsEditor)
+  const handleDynamicDetailsChange = (newDetails: Record<string, any>) => {
     setFormData((prev) => ({
       ...prev,
-      details: {
-        ...prev.details,
-        tamanhos: checked
-          ? [...(prev.details.tamanhos || []), tamanho]
-          : (prev.details.tamanhos || []).filter((t: string) => t !== tamanho),
-      },
+      details: newDetails,
     }))
-  }
-
-  const handleDynamicDetailsChange = (newDetails: Record<string, any>) => {
-    setFormData(prev => ({
-      ...prev,
-      details: {
-        ...prev.details,
-        ...newDetails
-      }
-    }))
-  }
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   return (
@@ -369,8 +405,8 @@ function NewProductPageContent() {
                   <Label htmlFor="material">Material</Label>
                   <Input
                     id="material"
-                    value={formData.details.material}
-                    onChange={(e) => handleDetailsChange("material", e.target.value)}
+                    value={formData.material || ""}
+                    onChange={(e) => handleInputChange("material", e.target.value)}
                     placeholder="Ex: 100% Algodão Premium"
                   />
                 </div>
@@ -379,8 +415,8 @@ function NewProductPageContent() {
                   <Label htmlFor="tempo_producao">Tempo de Produção</Label>
                   <Input
                     id="tempo_producao"
-                    value={formData.details.tempo_producao}
-                    onChange={(e) => handleDetailsChange("tempo_producao", e.target.value)}
+                    value={formData.tempo_producao || ""}
+                    onChange={(e) => handleInputChange("tempo_producao", e.target.value)}
                     placeholder="Ex: 7 a 10 dias úteis"
                   />
                 </div>
@@ -393,7 +429,7 @@ function NewProductPageContent() {
                     <div key={tamanho} className="flex items-center space-x-2">
                       <Checkbox
                         id={tamanho}
-                        checked={(formData.details.tamanhos || []).includes(tamanho)}
+                        checked={(formData.tamanhos || []).includes(tamanho)}
                         onCheckedChange={(checked) => handleTamanhosChange(tamanho, checked as boolean)}
                       />
                       <Label htmlFor={tamanho} className="text-sm">
@@ -404,12 +440,45 @@ function NewProductPageContent() {
                 </div>
               </div>
 
+              {/* Seção de Cores */}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="has_colors"
+                    checked={formData.has_colors}
+                    onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, has_colors: checked }))}
+                  />
+                  <Label htmlFor="has_colors" className="font-semibold text-base">Este produto tem opções de cores?</Label>
+                </div>
+
+                {formData.has_colors && (
+                  <div className="pl-6 space-y-4 border-l-2 border-pink-100">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="is_secondary_color"
+                        checked={formData.is_secondary_color}
+                        onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, is_secondary_color: checked }))}
+                      />
+                      <Label htmlFor="is_secondary_color">Permitir escolha de cor secundária?</Label>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Cores Disponíveis</Label>
+                      <ColorsEditor
+                        colors={formData.colors || []}
+                        onChange={(newColors) => setFormData(prev => ({ ...prev, colors: newColors }))}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="cuidados">Cuidados</Label>
                 <Textarea
                   id="cuidados"
-                  value={formData.details.cuidados}
-                  onChange={(e) => handleDetailsChange("cuidados", e.target.value)}
+                  value={formData.cuidados || ""}
+                  onChange={(e) => handleInputChange("cuidados", e.target.value)}
                   placeholder="Ex: Lavar à mão com água fria, secar à sombra"
                   rows={3}
                 />
@@ -418,11 +487,7 @@ function NewProductPageContent() {
               {/* Dynamic Details Editor */}
               <div className="pt-4 border-t">
                 <DetailsEditor
-                  value={Object.fromEntries(
-                    Object.entries(formData.details).filter(([key]) =>
-                      !['material', 'tamanhos', 'cuidados', 'tempo_producao'].includes(key)
-                    )
-                  )}
+                  value={formData.details || {}}
                   onChange={handleDynamicDetailsChange}
                 />
               </div>
@@ -449,7 +514,7 @@ function NewProductPageContent() {
           </div>
         </form>
       </div>
-    </div>
+    </div >
   )
 }
 

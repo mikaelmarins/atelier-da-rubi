@@ -1,31 +1,53 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { ProductServiceSupabase, type ProductWithImages } from "@/lib/product-service"
 import { supabase } from "@/lib/supabase"
 
-export function useProducts() {
-  const [products, setProducts] = useState<ProductWithImages[]>([])
-  const [loading, setLoading] = useState(true)
+// Cache global para evitar múltiplas requisições
+let productsCache: ProductWithImages[] | null = null
+let cacheTime: number = 0
+const CACHE_DURATION = 30000 // 30 segundos de cache
 
-  const loadProducts = async () => {
+export function useProducts() {
+  const [products, setProducts] = useState<ProductWithImages[]>(productsCache || [])
+  const [loading, setLoading] = useState(productsCache === null)
+  const isLoadingRef = useRef(false)
+
+  const loadProducts = useCallback(async (forceRefresh = false) => {
+    // Se já está carregando, não faz outra requisição
+    if (isLoadingRef.current) return
+
+    // Se tem cache válido e não é forceRefresh, usa o cache
+    const now = Date.now()
+    if (!forceRefresh && productsCache && (now - cacheTime) < CACHE_DURATION) {
+      setProducts(productsCache)
+      setLoading(false)
+      return
+    }
+
+    isLoadingRef.current = true
+    setLoading(true)
+
     try {
-      console.log("useProducts: calling getAllProducts")
       const data = await ProductServiceSupabase.getAllProducts()
-      console.log("useProducts: got data", data?.length)
+      productsCache = data
+      cacheTime = Date.now()
       setProducts(data)
     } catch (error) {
       console.error("Error loading products:", error)
     } finally {
-      console.log("useProducts: setting loading false")
       setLoading(false)
+      isLoadingRef.current = false
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadProducts()
 
-    // Escutar mudanças em tempo real
+    // Escutar mudanças em tempo real (com debounce)
+    let debounceTimer: NodeJS.Timeout
+
     const channel = supabase
       .channel("products-changes")
       .on(
@@ -36,7 +58,8 @@ export function useProducts() {
           table: "products",
         },
         () => {
-          loadProducts()
+          clearTimeout(debounceTimer)
+          debounceTimer = setTimeout(() => loadProducts(true), 500)
         },
       )
       .on(
@@ -47,20 +70,22 @@ export function useProducts() {
           table: "product_images",
         },
         () => {
-          loadProducts()
+          clearTimeout(debounceTimer)
+          debounceTimer = setTimeout(() => loadProducts(true), 500)
         },
       )
       .subscribe()
 
     return () => {
+      clearTimeout(debounceTimer)
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [loadProducts])
 
   return {
     products,
     loading,
-    refresh: loadProducts,
+    refresh: () => loadProducts(true),
   }
 }
 
@@ -68,7 +93,7 @@ export function useProduct(id: number) {
   const [product, setProduct] = useState<ProductWithImages | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const loadProduct = async () => {
+  const loadProduct = useCallback(async () => {
     try {
       const data = await ProductServiceSupabase.getProductById(id)
       setProduct(data)
@@ -77,7 +102,7 @@ export function useProduct(id: number) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
 
   useEffect(() => {
     loadProduct()
@@ -113,7 +138,7 @@ export function useProduct(id: number) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [id])
+  }, [id, loadProduct])
 
   return {
     product,

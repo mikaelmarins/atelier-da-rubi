@@ -49,6 +49,9 @@ export type Database = {
           length: number
           is_customizable: boolean
           created_at: string
+          has_colors: boolean
+          colors: any
+          is_secondary_color: boolean
         }
         Insert: {
           name: string
@@ -67,6 +70,9 @@ export type Database = {
           width?: number
           length?: number
           is_customizable?: boolean
+          has_colors?: boolean
+          colors?: any
+          is_secondary_color?: boolean
         }
         Update: {
           name?: string
@@ -85,6 +91,9 @@ export type Database = {
           width?: number
           length?: number
           is_customizable?: boolean
+          has_colors?: boolean
+          colors?: any
+          is_secondary_color?: boolean
         }
       }
       product_images: {

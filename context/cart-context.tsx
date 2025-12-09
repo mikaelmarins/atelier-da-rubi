@@ -12,8 +12,8 @@ export interface CartItem {
 interface CartContextType {
   items: CartItem[]
   addToCart: (product: ProductWithImages, quantity?: number, customization?: string) => void
-  removeFromCart: (productId: number) => void
-  updateQuantity: (productId: number, quantity: number) => void
+  removeFromCart: (productId: number, customization?: string) => void
+  updateQuantity: (productId: number, quantity: number, customization?: string) => void
   clearCart: () => void
   cartTotal: number
   itemsCount: number
@@ -61,18 +61,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  const removeFromCart = (productId: number) => {
-    setItems((prevItems) => prevItems.filter((item) => item.product.id !== productId))
+  const removeFromCart = (productId: number, customization?: string) => {
+    setItems((prevItems) => prevItems.filter(
+      (item) => !(item.product.id === productId && item.customization === customization)
+    ))
   }
 
-  const updateQuantity = (productId: number, quantity: number) => {
+  const updateQuantity = (productId: number, quantity: number, customization?: string) => {
     if (quantity <= 0) {
-      removeFromCart(productId)
+      removeFromCart(productId, customization)
       return
     }
 
     setItems((prevItems) =>
-      prevItems.map((item) => (item.product.id === productId ? { ...item, quantity } : item)),
+      prevItems.map((item) =>
+        (item.product.id === productId && item.customization === customization)
+          ? { ...item, quantity }
+          : item
+      ),
     )
   }
 

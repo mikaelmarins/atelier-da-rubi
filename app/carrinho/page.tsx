@@ -16,25 +16,55 @@ export default function CartPage() {
   const [cep, setCep] = useState("")
   const [shippingCost, setShippingCost] = useState<number | null>(null)
   const [isCalculating, setIsCalculating] = useState(false)
+  const [shippingOptions, setShippingOptions] = useState<any[]>([])
+  const [selectedShipping, setSelectedShipping] = useState<number | null>(null)
 
   const handleCalculateShipping = async () => {
     if (cep.length < 8) return
 
     setIsCalculating(true)
-    // Simulação de cálculo de frete
-    // TODO: Implementar integração real com Correios/Melhor Envio
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    setShippingOptions([])
+    setShippingCost(null)
 
-    // Regra de negócio simples para demonstração (Mock)
-    // Região dos Lagos (CEP começa com 289) -> Grátis
-    // Outros -> Base R$ 25,00 + R$ 5,00 por item (simulando peso)
-    if (cep.startsWith("289")) {
-      setShippingCost(0)
-    } else {
-      const weightSurcharge = items.reduce((acc, item) => acc + (item.quantity * 5), 0)
-      setShippingCost(25.00 + weightSurcharge)
+    try {
+      const response = await fetch('/api/shipping/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cep_destino: cep,
+          products: items.map(item => ({
+            id: item.product.id,
+            quantity: item.quantity,
+            weight: item.product.weight || 0.3,
+            height: item.product.height || 2,
+            width: item.product.width || 11,
+            length: item.product.length || 16,
+          })),
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success && data.options?.length > 0) {
+        setShippingOptions(data.options)
+        // Selecionar a opção mais barata automaticamente
+        const cheapest = data.options.reduce((min: any, opt: any) =>
+          opt.price < min.price ? opt : min, data.options[0])
+        setSelectedShipping(cheapest.id)
+        setShippingCost(cheapest.price)
+      } else {
+        // Fallback local se API falhar
+        const totalWeight = items.reduce((acc, item) => acc + ((item.product.weight || 0.2) * item.quantity), 0)
+        setShippingCost(cep.startsWith("289") ? 0 : 20 + (totalWeight * 15))
+      }
+    } catch (error) {
+      console.error('Erro ao calcular frete:', error)
+      // Fallback local
+      const totalWeight = items.reduce((acc, item) => acc + ((item.product.weight || 0.2) * item.quantity), 0)
+      setShippingCost(cep.startsWith("289") ? 0 : 20 + (totalWeight * 15))
+    } finally {
+      setIsCalculating(false)
     }
-    setIsCalculating(false)
   }
 
   if (items.length === 0) {
@@ -64,8 +94,8 @@ export default function CartPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Lista de Produtos */}
         <div className="lg:col-span-2 space-y-4">
-          {items.map((item) => (
-            <Card key={item.product.id} className="overflow-hidden">
+          {items.map((item, index) => (
+            <Card key={`cart-${item.product.id}-${item.customization || 'no-custom'}-${index}`} className="overflow-hidden">
               <CardContent className="p-4">
                 <div className="flex gap-4">
                   <div className="relative h-24 w-24 flex-shrink-0 rounded-md overflow-hidden bg-gray-100">
@@ -98,7 +128,7 @@ export default function CartPage() {
                         variant="ghost"
                         size="icon"
                         className="text-red-400 hover:text-red-600 hover:bg-red-50 -mr-2"
-                        onClick={() => removeFromCart(item.product.id)}
+                        onClick={() => removeFromCart(item.product.id, item.customization)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -110,7 +140,7 @@ export default function CartPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 rounded-none"
-                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                          onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.customization)}
                           disabled={item.quantity <= 1}
                         >
                           <Minus className="h-3 w-3" />
@@ -120,7 +150,7 @@ export default function CartPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 rounded-none"
-                          onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                          onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.customization)}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>

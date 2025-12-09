@@ -23,8 +23,8 @@ export class ProductServiceSupabase {
         .single()
 
       if (productError) {
-        console.error("[v0] Error creating product:", productError)
-        throw productError
+        console.error("[v0] Error creating product:", productError.message, productError.code, productError.details, JSON.stringify(productError))
+        throw new Error(productError.message || "Erro ao criar produto no banco de dados")
       }
 
       console.log("[v0] Product created successfully:", product.id)

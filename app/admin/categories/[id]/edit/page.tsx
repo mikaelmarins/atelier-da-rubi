@@ -3,6 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { ArrowLeft, Save, Loader2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,6 +17,7 @@ function EditCategoryPageContent() {
     const router = useRouter()
     const params = useParams()
     const id = params.id as string
+    const { toast } = useToast()
 
     const [loading, setLoading] = useState(false)
     const [initialLoading, setInitialLoading] = useState(true)
@@ -36,7 +38,11 @@ function EditCategoryPageContent() {
                 }
             } catch (error) {
                 console.error("Error loading category:", error)
-                alert("Erro ao carregar categoria")
+                toast({
+                    variant: "destructive",
+                    title: "Erro",
+                    description: "Erro ao carregar categoria",
+                })
                 router.push("/admin/categories")
             } finally {
                 setInitialLoading(false)
@@ -66,11 +72,18 @@ function EditCategoryPageContent() {
 
             if (error) throw error
 
-            alert("Categoria atualizada com sucesso!")
+            toast({
+                title: "Sucesso",
+                description: "Categoria atualizada com sucesso!",
+            })
             router.push("/admin/categories")
         } catch (error) {
             console.error("Error updating category:", error)
-            alert("Erro ao atualizar categoria.")
+            toast({
+                variant: "destructive",
+                title: "Erro ao atualizar",
+                description: "Erro ao atualizar categoria.",
+            })
         } finally {
             setLoading(false)
         }

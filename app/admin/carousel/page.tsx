@@ -135,7 +135,10 @@ const CarouselManagementPageContent: React.FC = () => {
 
           const { error } = await supabase.from("carousel_config").insert(insertData)
 
-          if (error) throw error
+          if (error) {
+            console.error("Supabase Error Details:", error)
+            throw new Error(error.message)
+          }
         }
 
         toast({
