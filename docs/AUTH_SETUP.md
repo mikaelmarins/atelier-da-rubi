@@ -55,7 +55,7 @@ Isso criará:
 
 No arquivo `.env.local`, adicione:
 
-```env
+\`\`\`env
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=sua_url_aqui
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anon_aqui
@@ -63,7 +63,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anon_aqui
 # InfinitePay (a configurar)
 # INFINITEPAY_API_KEY=sua_api_key
 # INFINITEPAY_SECRET=seu_secret
-```
+\`\`\`
 
 ---
 
