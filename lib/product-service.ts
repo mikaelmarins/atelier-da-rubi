@@ -191,19 +191,27 @@ export class ProductServiceSupabase {
     }
   }
 
-  // Atualizar produto
+  // Atualizar produto - usa API route para bypass de RLS
   static async updateProduct(
     id: number,
     data: Partial<ProductInsert>,
     newImageFiles?: File[],
   ): Promise<ProductWithImages | null> {
     try {
-      // 1. Atualizar dados do produto
-      const { error: updateError } = await supabase.from("products").update(data).eq("id", id)
+      console.log("[updateProduct] Starting update for ID:", id, "Data:", data)
 
-      if (updateError) {
-        console.error("Error updating product:", updateError)
-        throw new Error("Falha ao atualizar produto")
+      // 1. Atualizar dados do produto via API
+      const response = await fetch('/api/admin/products', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...data })
+      })
+
+      const result = await response.json()
+      console.log("[updateProduct] API response:", result)
+
+      if (!response.ok) {
+        throw new Error(result.error || "Falha ao atualizar produto")
       }
 
       // 2. Adicionar novas imagens se houver
@@ -260,37 +268,20 @@ export class ProductServiceSupabase {
     }
   }
 
-  // Deletar produto
+  // Deletar produto - usa API route para bypass de RLS
   static async deleteProduct(id: number): Promise<void> {
     try {
       console.log("[deleteProduct] Starting delete for ID:", id)
 
-      // 1. Buscar imagens para deletar do storage
-      const { data: images, error: imagesError } = await supabase.from("product_images").select("image_url").eq("product_id", id)
-      console.log("[deleteProduct] Found images:", images?.length || 0, "Error:", imagesError)
+      const response = await fetch(`/api/admin/products?id=${id}`, {
+        method: 'DELETE',
+      })
 
-      // 2. Deletar imagens do storage
-      if (images && images.length > 0) {
-        for (const image of images) {
-          const path = image.image_url.split("/product-images/")[1]
-          if (path) {
-            const { error: storageError } = await supabase.storage.from("product-images").remove([path])
-            console.log("[deleteProduct] Deleted storage image:", path, "Error:", storageError)
-          }
-        }
-      }
+      const result = await response.json()
+      console.log("[deleteProduct] API response:", result)
 
-      // 3. Deletar registros de product_images primeiro
-      const { error: imageDeleteError } = await supabase.from("product_images").delete().eq("product_id", id)
-      console.log("[deleteProduct] Deleted product_images. Error:", imageDeleteError)
-
-      // 4. Deletar produto
-      const { error, data } = await supabase.from("products").delete().eq("id", id).select()
-      console.log("[deleteProduct] Delete result. Data:", data, "Error:", error)
-
-      if (error) {
-        console.error("[deleteProduct] Error deleting product:", error)
-        throw new Error("Falha ao deletar produto: " + error.message)
+      if (!response.ok) {
+        throw new Error(result.error || "Falha ao deletar produto")
       }
 
       console.log("[deleteProduct] Successfully deleted product ID:", id)
