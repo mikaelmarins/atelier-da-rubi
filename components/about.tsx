@@ -30,11 +30,11 @@ export default function About() {
               <div className="absolute -inset-4 bg-gradient-to-r from-pink-200 to-purple-200 rounded-2xl opacity-20"></div>
               <div className="relative rounded-2xl shadow-lg overflow-hidden bg-white">
                 <Image
-                  src="/placeholder.svg?height=400&width=400"
+                  src="/about-rubi.jpg"
                   alt="Rubiana Lima bordando no Atelier da Rubi"
                   width={400}
                   height={400}
-                  className="w-full h-full object-cover"
+                  className="w-full aspect-square object-cover object-center"
                 />
               </div>
             </div>

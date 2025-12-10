@@ -1,79 +1,63 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { motion } from "framer-motion"
+import { useState, useEffect, Suspense } from "react"
+import { useAuth } from "@/context/auth-context"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { useAuth } from "@/context/auth-context"
-import { useToast } from "@/hooks/use-toast"
-import { formatCurrency } from "@/lib/utils"
-import { supabase } from "@/lib/supabase"
 import {
-    User, Package, MapPin, LogOut, Loader2, Plus, Trash2,
-    Star, Clock, CheckCircle, Truck, AlertCircle, Edit2, Save
+    User, Mail, Phone, MapPin, LogOut, ShoppingBag, Package,
+    Clock, CheckCircle, Truck, XCircle, Eye, Lock, Loader2
 } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import { toast } from "@/hooks/use-toast"
+import { formatCurrency } from "@/lib/utils"
 
 interface Order {
     id: string
-    status: string
-    payment_status: string | null
-    total_amount: number
-    shipping_cost: number
-    tracking_code: string | null
-    tracking_url: string | null
     created_at: string
+    status: string
+    total: number
+    subtotal: number
+    shipping_cost: number
+    discount: number
     items: any[]
-    customer_name: string
-    customer_email: string
-    customer_phone: string
-    address_city: string
-    address_state: string
+    shipping_address: any
+    tracking_code?: string
 }
 
-export default function AccountPage() {
-    const router = useRouter()
-    const { user, profile, addresses, loading, signOut, updateProfile, addAddress, removeAddress, setDefaultAddress } = useAuth()
-    const { toast } = useToast()
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+    pending: { label: "Pendente", color: "bg-yellow-100 text-yellow-800", icon: <Clock className="h-4 w-4" /> },
+    paid: { label: "Pago", color: "bg-green-100 text-green-800", icon: <CheckCircle className="h-4 w-4" /> },
+    processing: { label: "Em Preparo", color: "bg-blue-100 text-blue-800", icon: <Package className="h-4 w-4" /> },
+    shipped: { label: "Enviado", color: "bg-purple-100 text-purple-800", icon: <Truck className="h-4 w-4" /> },
+    delivered: { label: "Entregue", color: "bg-emerald-100 text-emerald-800", icon: <CheckCircle className="h-4 w-4" /> },
+    cancelled: { label: "Cancelado", color: "bg-red-100 text-red-800", icon: <XCircle className="h-4 w-4" /> },
+}
 
+function MinhaContaContent() {
+    const { user, profile, signOut, loading: authLoading } = useAuth()
+    const router = useRouter()
+    const searchParams = useSearchParams()
     const [orders, setOrders] = useState<Order[]>([])
     const [loadingOrders, setLoadingOrders] = useState(true)
-    const [editingProfile, setEditingProfile] = useState(false)
-    const [savingProfile, setSavingProfile] = useState(false)
-    const [profileForm, setProfileForm] = useState({ name: "", phone: "" })
+    const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "pedidos")
 
-    // Address form
-    const [showAddressForm, setShowAddressForm] = useState(false)
-    const [addressForm, setAddressForm] = useState({
-        label: "Casa",
-        zip: "",
-        street: "",
-        number: "",
-        complement: "",
-        neighborhood: "",
-        city: "",
-        state: "",
-        is_default: false
-    })
-    const [savingAddress, setSavingAddress] = useState(false)
+    // Password change state
+    const [currentPassword, setCurrentPassword] = useState("")
+    const [newPassword, setNewPassword] = useState("")
+    const [confirmPassword, setConfirmPassword] = useState("")
+    const [changingPassword, setChangingPassword] = useState(false)
 
     useEffect(() => {
-        if (!loading && !user) {
-            router.push("/auth/login?redirect=/minha-conta")
+        if (!authLoading && !user) {
+            router.push("/auth/login")
         }
-    }, [user, loading, router])
-
-    useEffect(() => {
-        if (profile) {
-            setProfileForm({ name: profile.name || "", phone: profile.phone || "" })
-        }
-    }, [profile])
+    }, [user, authLoading, router])
 
     useEffect(() => {
         if (user) {
@@ -82,109 +66,65 @@ export default function AccountPage() {
     }, [user])
 
     const loadOrders = async () => {
-        if (!user) return
-        setLoadingOrders(true)
+        try {
+            const { data, error } = await supabase
+                .from("orders")
+                .select("*")
+                .eq("user_id", user?.id)
+                .order("created_at", { ascending: false })
 
-        const { data } = await supabase
-            .from("orders")
-            .select("*, items:order_items(*)")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false })
-
-        if (data) setOrders(data)
-        setLoadingOrders(false)
-    }
-
-    const handleSaveProfile = async () => {
-        setSavingProfile(true)
-        const { error } = await updateProfile(profileForm)
-
-        if (error) {
-            toast({ title: "Erro ao salvar", variant: "destructive" })
-        } else {
-            toast({ title: "Perfil atualizado!" })
-            setEditingProfile(false)
+            if (error) throw error
+            setOrders(data || [])
+        } catch (error) {
+            console.error("Error loading orders:", error)
+        } finally {
+            setLoadingOrders(false)
         }
-        setSavingProfile(false)
-    }
-
-    const handleCepBlur = async () => {
-        if (addressForm.zip.length === 8) {
-            try {
-                const res = await fetch(`https://viacep.com.br/ws/${addressForm.zip}/json/`)
-                const data = await res.json()
-                if (!data.erro) {
-                    setAddressForm(prev => ({
-                        ...prev,
-                        street: data.logradouro || prev.street,
-                        neighborhood: data.bairro || prev.neighborhood,
-                        city: data.localidade || prev.city,
-                        state: data.uf || prev.state
-                    }))
-                }
-            } catch (e) {
-                console.error("CEP lookup error", e)
-            }
-        }
-    }
-
-    const handleSaveAddress = async () => {
-        if (!addressForm.zip || !addressForm.street || !addressForm.number || !addressForm.city) {
-            toast({ title: "Preencha todos os campos obrigatórios", variant: "destructive" })
-            return
-        }
-
-        setSavingAddress(true)
-        const { error } = await addAddress(addressForm)
-
-        if (error) {
-            toast({ title: "Erro ao salvar endereço", variant: "destructive" })
-        } else {
-            toast({ title: "Endereço salvo!" })
-            setShowAddressForm(false)
-            setAddressForm({
-                label: "Casa",
-                zip: "",
-                street: "",
-                number: "",
-                complement: "",
-                neighborhood: "",
-                city: "",
-                state: "",
-                is_default: false
-            })
-        }
-        setSavingAddress(false)
     }
 
     const handleLogout = async () => {
         await signOut()
         router.push("/")
-        toast({ title: "Até logo! 👋" })
     }
 
-    const getStatusBadge = (status: string) => {
-        const statusMap: Record<string, { label: string, variant: "default" | "secondary" | "destructive" | "outline", icon: any }> = {
-            pending: { label: "Pendente", variant: "secondary", icon: Clock },
-            paid: { label: "Pago", variant: "default", icon: CheckCircle },
-            processing: { label: "Preparando", variant: "default", icon: Package },
-            shipped: { label: "Enviado", variant: "default", icon: Truck },
-            delivered: { label: "Entregue", variant: "default", icon: CheckCircle },
-            cancelled: { label: "Cancelado", variant: "destructive", icon: AlertCircle }
+    const handleChangePassword = async () => {
+        if (newPassword !== confirmPassword) {
+            toast({ title: "Erro", description: "As senhas não coincidem", variant: "destructive" })
+            return
         }
-        const s = statusMap[status] || statusMap.pending
-        const Icon = s.icon
-        return (
-            <Badge variant={s.variant} className="flex items-center gap-1">
-                <Icon className="h-3 w-3" /> {s.label}
-            </Badge>
-        )
+        if (newPassword.length < 6) {
+            toast({ title: "Erro", description: "A senha deve ter pelo menos 6 caracteres", variant: "destructive" })
+            return
+        }
+
+        setChangingPassword(true)
+        try {
+            const { error } = await supabase.auth.updateUser({ password: newPassword })
+            if (error) throw error
+
+            toast({ title: "Sucesso!", description: "Senha alterada com sucesso" })
+            setCurrentPassword("")
+            setNewPassword("")
+            setConfirmPassword("")
+        } catch (error: any) {
+            toast({ title: "Erro", description: error.message || "Erro ao alterar senha", variant: "destructive" })
+        } finally {
+            setChangingPassword(false)
+        }
     }
 
-    if (loading) {
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString("pt-BR", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric"
+        })
+    }
+
+    if (authLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center pt-24">
-                <Loader2 className="h-8 w-8 text-pink-500 animate-spin" />
+            <div className="min-h-screen flex items-center justify-center pt-20">
+                <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
             </div>
         )
     }
@@ -192,386 +132,309 @@ export default function AccountPage() {
     if (!user) return null
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 pt-24 pb-12">
-            <div className="container mx-auto px-4 max-w-4xl">
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                >
-                    {/* Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-800">Minha Conta</h1>
-                            <p className="text-gray-600">Olá, {profile?.name || "Cliente"}! 👋</p>
+        <div className="container mx-auto px-4 py-24 pt-28 max-w-4xl min-h-screen">
+            {/* Header */}
+            <div className="flex justify-between items-start mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900">Minha Conta</h1>
+                    <p className="text-gray-600 mt-1">
+                        Olá, {profile?.name || "cliente"}! 👋
+                    </p>
+                </div>
+                <Button variant="outline" onClick={handleLogout} className="gap-2 text-gray-600">
+                    <LogOut className="h-4 w-4" />
+                    Sair
+                </Button>
+            </div>
+
+            {/* Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-3 mb-8">
+                    <TabsTrigger value="pedidos" className="gap-2">
+                        <Package className="h-4 w-4" />
+                        Pedidos
+                    </TabsTrigger>
+                    <TabsTrigger value="enderecos" className="gap-2">
+                        <MapPin className="h-4 w-4" />
+                        Endereços
+                    </TabsTrigger>
+                    <TabsTrigger value="perfil" className="gap-2">
+                        <User className="h-4 w-4" />
+                        Perfil
+                    </TabsTrigger>
+                </TabsList>
+
+                {/* PEDIDOS TAB */}
+                <TabsContent value="pedidos">
+                    {loadingOrders ? (
+                        <div className="flex justify-center py-12">
+                            <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
                         </div>
-                        <Button variant="outline" onClick={handleLogout} className="gap-2">
-                            <LogOut className="h-4 w-4" /> Sair
-                        </Button>
-                    </div>
+                    ) : orders.length === 0 ? (
+                        <Card>
+                            <CardContent className="py-12 text-center">
+                                <Package className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+                                <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum pedido encontrado</h3>
+                                <p className="text-gray-500 mb-6">Você ainda não fez nenhum pedido.</p>
+                                <Button asChild className="bg-pink-500 hover:bg-pink-600">
+                                    <a href="/catalogo">
+                                        <ShoppingBag className="h-4 w-4 mr-2" />
+                                        Explorar Catálogo
+                                    </a>
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="space-y-4">
+                            {orders.map((order) => {
+                                const statusConfig = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
+                                const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items || []
+                                const address = typeof order.shipping_address === 'string' ? JSON.parse(order.shipping_address) : order.shipping_address
 
-                    <Tabs defaultValue="orders" className="space-y-6">
-                        <TabsList className="grid w-full grid-cols-3 bg-white/50">
-                            <TabsTrigger value="orders" className="gap-2">
-                                <Package className="h-4 w-4" /> Pedidos
-                            </TabsTrigger>
-                            <TabsTrigger value="addresses" className="gap-2">
-                                <MapPin className="h-4 w-4" /> Endereços
-                            </TabsTrigger>
-                            <TabsTrigger value="profile" className="gap-2">
-                                <User className="h-4 w-4" /> Perfil
-                            </TabsTrigger>
-                        </TabsList>
-
-                        {/* Orders Tab */}
-                        <TabsContent value="orders" className="space-y-4">
-                            {loadingOrders ? (
-                                <div className="flex justify-center py-12">
-                                    <Loader2 className="h-8 w-8 text-pink-500 animate-spin" />
-                                </div>
-                            ) : orders.length === 0 ? (
-                                <Card>
-                                    <CardContent className="py-12 text-center">
-                                        <Package className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                                        <h3 className="text-lg font-medium text-gray-600 mb-2">
-                                            Nenhum pedido ainda
-                                        </h3>
-                                        <p className="text-gray-500 mb-4">
-                                            Que tal fazer sua primeira compra?
-                                        </p>
-                                        <Button asChild className="bg-pink-500 hover:bg-pink-600">
-                                            <Link href="/catalogo">Ver Catálogo</Link>
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            ) : (
-                                orders.map((order) => (
+                                return (
                                     <Card key={order.id} className="overflow-hidden">
-                                        <CardHeader className="pb-2">
-                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                        <CardHeader className="bg-gray-50 py-4">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                                 <div>
-                                                    <CardTitle className="text-sm font-mono text-gray-500">
-                                                        #{order.id.slice(0, 8)}
-                                                    </CardTitle>
-                                                    <CardDescription>
-                                                        {new Date(order.created_at).toLocaleDateString("pt-BR", {
-                                                            day: "2-digit",
-                                                            month: "long",
-                                                            year: "numeric"
-                                                        })}
-                                                    </CardDescription>
+                                                    <p className="text-sm font-mono text-gray-500">#{order.id.slice(0, 8).toUpperCase()}</p>
+                                                    <p className="text-sm text-gray-600">{formatDate(order.created_at)}</p>
                                                 </div>
-                                                {getStatusBadge(order.status)}
+                                                <Badge className={`${statusConfig.color} gap-1 font-medium`}>
+                                                    {statusConfig.icon}
+                                                    {statusConfig.label}
+                                                </Badge>
                                             </div>
                                         </CardHeader>
-                                        <CardContent className="space-y-4">
-                                            <div className="flex items-center justify-between">
+                                        <CardContent className="py-4">
+                                            {/* Order Summary */}
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 pb-4 border-b">
                                                 <div>
-                                                    <p className="text-sm text-gray-600">
-                                                        {order.items?.length || 0} {order.items?.length === 1 ? "item" : "itens"}
-                                                    </p>
-                                                    <p className="text-lg font-bold text-gray-900">
-                                                        {formatCurrency(order.total_amount || 0)}
-                                                    </p>
+                                                    <p className="text-sm text-gray-500">{items.length} {items.length === 1 ? 'item' : 'itens'}</p>
+                                                    <p className="text-xl font-bold text-pink-600">{formatCurrency(order.total)}</p>
                                                 </div>
                                                 {order.tracking_code && (
-                                                    <div className="text-right">
-                                                        <p className="text-xs text-gray-500">Rastreio</p>
-                                                        {order.tracking_url ? (
-                                                            <a
-                                                                href={order.tracking_url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="text-pink-600 hover:underline font-mono text-sm"
-                                                            >
-                                                                {order.tracking_code}
-                                                            </a>
-                                                        ) : (
-                                                            <span className="font-mono text-sm">{order.tracking_code}</span>
-                                                        )}
+                                                    <div className="mt-2 sm:mt-0 p-2 bg-green-50 rounded-lg">
+                                                        <p className="text-xs text-green-600 font-medium">Código de rastreio</p>
+                                                        <p className="text-sm font-mono">{order.tracking_code}</p>
                                                     </div>
                                                 )}
                                             </div>
 
-                                            {/* Order Items Preview */}
-                                            {order.items && order.items.length > 0 && (
-                                                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                                                    <p className="text-xs font-medium text-gray-500 uppercase">Itens do Pedido</p>
-                                                    {order.items.slice(0, 3).map((item: any, idx: number) => (
-                                                        <div key={idx} className="flex justify-between text-sm">
-                                                            <span className="text-gray-700">
-                                                                {item.quantity}x {item.product_name}
-                                                                {item.customization && (
-                                                                    <span className="text-pink-600 text-xs ml-1">
-                                                                        ({item.customization})
-                                                                    </span>
-                                                                )}
-                                                            </span>
-                                                            <span className="text-gray-600">
-                                                                {formatCurrency(item.price * item.quantity)}
-                                                            </span>
+                                            {/* Items */}
+                                            <div className="space-y-2 mb-4">
+                                                <p className="text-xs font-medium text-gray-500 uppercase">Itens do Pedido</p>
+                                                {items.map((item: any, idx: number) => (
+                                                    <div key={idx} className="flex justify-between items-start p-2 bg-gray-50 rounded">
+                                                        <div className="flex-1">
+                                                            <p className="text-sm font-medium">{item.quantity}x {item.name}</p>
+                                                            {item.customization && (
+                                                                <p className="text-xs text-gray-500">{item.customization}</p>
+                                                            )}
                                                         </div>
-                                                    ))}
-                                                    {order.items.length > 3 && (
-                                                        <p className="text-xs text-gray-500">
-                                                            + {order.items.length - 3} mais itens
+                                                        <p className="text-sm font-medium text-gray-700">
+                                                            {formatCurrency(item.price * item.quantity)}
                                                         </p>
-                                                    )}
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {/* Pricing Details */}
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 text-sm">
+                                                <div className="p-2 bg-gray-50 rounded">
+                                                    <p className="text-xs text-gray-500">Subtotal</p>
+                                                    <p className="font-medium">{formatCurrency(order.subtotal || order.total)}</p>
                                                 </div>
-                                            )}
+                                                <div className="p-2 bg-gray-50 rounded">
+                                                    <p className="text-xs text-gray-500">Frete</p>
+                                                    <p className="font-medium">{order.shipping_cost === 0 ? 'Grátis' : formatCurrency(order.shipping_cost || 0)}</p>
+                                                </div>
+                                                {order.discount > 0 && (
+                                                    <div className="p-2 bg-green-50 rounded">
+                                                        <p className="text-xs text-green-600">Desconto</p>
+                                                        <p className="font-medium text-green-600">-{formatCurrency(order.discount)}</p>
+                                                    </div>
+                                                )}
+                                                <div className="p-2 bg-pink-50 rounded">
+                                                    <p className="text-xs text-pink-600">Total</p>
+                                                    <p className="font-bold text-pink-600">{formatCurrency(order.total)}</p>
+                                                </div>
+                                            </div>
 
                                             {/* Delivery Address */}
-                                            {order.address_city && (
-                                                <div className="text-sm text-gray-600">
+                                            {address && (
+                                                <div className="p-3 bg-gray-50 rounded-lg">
                                                     <p className="text-xs font-medium text-gray-500 uppercase mb-1">Entrega</p>
-                                                    <p>{order.address_city}/{order.address_state}</p>
+                                                    <p className="text-sm text-gray-700">
+                                                        {address.street}, {address.number}
+                                                        {address.complement && `, ${address.complement}`}
+                                                        <br />
+                                                        {address.neighborhood} - {address.city}/{address.state}
+                                                        <br />
+                                                        CEP: {address.zip}
+                                                    </p>
                                                 </div>
                                             )}
                                         </CardContent>
                                     </Card>
-                                ))
-                            )}
-                        </TabsContent>
+                                )
+                            })}
+                        </div>
+                    )}
+                </TabsContent>
 
-                        {/* Addresses Tab */}
-                        <TabsContent value="addresses" className="space-y-4">
-                            {addresses.length === 0 && !showAddressForm ? (
-                                <Card>
-                                    <CardContent className="py-12 text-center">
-                                        <MapPin className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                                        <h3 className="text-lg font-medium text-gray-600 mb-2">
-                                            Nenhum endereço salvo
-                                        </h3>
-                                        <p className="text-gray-500 mb-4">
-                                            Adicione um endereço para agilizar suas compras
-                                        </p>
-                                        <Button onClick={() => setShowAddressForm(true)} className="bg-pink-500 hover:bg-pink-600">
-                                            <Plus className="h-4 w-4 mr-2" /> Adicionar Endereço
-                                        </Button>
-                                    </CardContent>
-                                </Card>
+                {/* ENDERELOS TAB */}
+                <TabsContent value="enderecos">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <MapPin className="h-5 w-5 text-pink-500" />
+                                Meus Endereços
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {orders.length > 0 && orders[0].shipping_address ? (
+                                <div className="p-4 border rounded-lg">
+                                    <p className="font-medium mb-2">Último endereço usado:</p>
+                                    {(() => {
+                                        const address = typeof orders[0].shipping_address === 'string'
+                                            ? JSON.parse(orders[0].shipping_address)
+                                            : orders[0].shipping_address
+                                        return (
+                                            <div className="text-gray-600">
+                                                <p>{address.street}, {address.number} {address.complement && `- ${address.complement}`}</p>
+                                                <p>{address.neighborhood}</p>
+                                                <p>{address.city} - {address.state}</p>
+                                                <p>CEP: {address.zip}</p>
+                                            </div>
+                                        )
+                                    })()}
+                                </div>
                             ) : (
-                                <>
-                                    {addresses.map((addr) => (
-                                        <Card key={addr.id}>
-                                            <CardContent className="p-4">
-                                                <div className="flex items-start justify-between">
-                                                    <div>
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="font-medium">{addr.label}</span>
-                                                            {addr.is_default && (
-                                                                <Badge variant="secondary" className="text-xs">
-                                                                    <Star className="h-3 w-3 mr-1" /> Padrão
-                                                                </Badge>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-sm text-gray-600">
-                                                            {addr.street}, {addr.number}
-                                                            {addr.complement && `, ${addr.complement}`}
-                                                        </p>
-                                                        <p className="text-sm text-gray-600">
-                                                            {addr.neighborhood} - {addr.city}/{addr.state}
-                                                        </p>
-                                                        <p className="text-sm text-gray-500">CEP: {addr.zip}</p>
-                                                    </div>
-                                                    <div className="flex gap-2">
-                                                        {!addr.is_default && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => setDefaultAddress(addr.id)}
-                                                            >
-                                                                <Star className="h-4 w-4" />
-                                                            </Button>
-                                                        )}
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="text-red-500 hover:text-red-600"
-                                                            onClick={() => removeAddress(addr.id)}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
-
-                                    {showAddressForm ? (
-                                        <Card>
-                                            <CardHeader>
-                                                <CardTitle>Novo Endereço</CardTitle>
-                                            </CardHeader>
-                                            <CardContent className="space-y-4">
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <Label>Apelido</Label>
-                                                        <Input
-                                                            value={addressForm.label}
-                                                            onChange={(e) => setAddressForm(prev => ({ ...prev, label: e.target.value }))}
-                                                            placeholder="Casa, Trabalho..."
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <Label>CEP</Label>
-                                                        <Input
-                                                            value={addressForm.zip}
-                                                            onChange={(e) => setAddressForm(prev => ({ ...prev, zip: e.target.value.replace(/\D/g, "").slice(0, 8) }))}
-                                                            onBlur={handleCepBlur}
-                                                            placeholder="00000000"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="grid grid-cols-3 gap-4">
-                                                    <div className="col-span-2">
-                                                        <Label>Rua</Label>
-                                                        <Input
-                                                            value={addressForm.street}
-                                                            onChange={(e) => setAddressForm(prev => ({ ...prev, street: e.target.value }))}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <Label>Número</Label>
-                                                        <Input
-                                                            value={addressForm.number}
-                                                            onChange={(e) => setAddressForm(prev => ({ ...prev, number: e.target.value }))}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <Label>Complemento</Label>
-                                                        <Input
-                                                            value={addressForm.complement}
-                                                            onChange={(e) => setAddressForm(prev => ({ ...prev, complement: e.target.value }))}
-                                                            placeholder="Apto, Bloco..."
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <Label>Bairro</Label>
-                                                        <Input
-                                                            value={addressForm.neighborhood}
-                                                            onChange={(e) => setAddressForm(prev => ({ ...prev, neighborhood: e.target.value }))}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <Label>Cidade</Label>
-                                                        <Input
-                                                            value={addressForm.city}
-                                                            onChange={(e) => setAddressForm(prev => ({ ...prev, city: e.target.value }))}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <Label>Estado</Label>
-                                                        <Input
-                                                            value={addressForm.state}
-                                                            onChange={(e) => setAddressForm(prev => ({ ...prev, state: e.target.value }))}
-                                                            maxLength={2}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        type="checkbox"
-                                                        id="is_default"
-                                                        checked={addressForm.is_default}
-                                                        onChange={(e) => setAddressForm(prev => ({ ...prev, is_default: e.target.checked }))}
-                                                    />
-                                                    <Label htmlFor="is_default" className="cursor-pointer">
-                                                        Definir como endereço padrão
-                                                    </Label>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        onClick={handleSaveAddress}
-                                                        className="bg-pink-500 hover:bg-pink-600"
-                                                        disabled={savingAddress}
-                                                    >
-                                                        {savingAddress ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                                                        Salvar
-                                                    </Button>
-                                                    <Button variant="outline" onClick={() => setShowAddressForm(false)}>
-                                                        Cancelar
-                                                    </Button>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ) : (
-                                        <Button onClick={() => setShowAddressForm(true)} variant="outline" className="w-full">
-                                            <Plus className="h-4 w-4 mr-2" /> Adicionar Endereço
-                                        </Button>
-                                    )}
-                                </>
+                                <div className="text-center py-8 text-gray-500">
+                                    <MapPin className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                                    <p>Nenhum endereço salvo.</p>
+                                    <p className="text-sm">Seu endereço será salvo quando você fizer um pedido.</p>
+                                </div>
                             )}
-                        </TabsContent>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-                        {/* Profile Tab */}
-                        <TabsContent value="profile">
-                            <Card>
-                                <CardHeader>
-                                    <div className="flex items-center justify-between">
-                                        <CardTitle>Dados Pessoais</CardTitle>
-                                        {!editingProfile && (
-                                            <Button variant="ghost" size="sm" onClick={() => setEditingProfile(true)}>
-                                                <Edit2 className="h-4 w-4 mr-2" /> Editar
-                                            </Button>
-                                        )}
+                {/* PERFIL TAB */}
+                <TabsContent value="perfil">
+                    <div className="space-y-6">
+                        {/* Personal Info */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <User className="h-5 w-5 text-pink-500" />
+                                    Dados Pessoais
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid sm:grid-cols-2 gap-4">
+                                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                        <User className="h-5 w-5 text-gray-400" />
+                                        <div>
+                                            <p className="text-xs text-gray-500">Nome</p>
+                                            <p className="font-medium">{profile?.name || "Não informado"}</p>
+                                        </div>
                                     </div>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div>
-                                        <Label>Nome</Label>
-                                        {editingProfile ? (
-                                            <Input
-                                                value={profileForm.name}
-                                                onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
-                                            />
-                                        ) : (
-                                            <p className="text-gray-800">{profile?.name || "-"}</p>
-                                        )}
+                                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                        <Mail className="h-5 w-5 text-gray-400" />
+                                        <div>
+                                            <p className="text-xs text-gray-500">Email</p>
+                                            <p className="font-medium">{profile?.email || user.email}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <Label>E-mail</Label>
-                                        <p className="text-gray-800">{profile?.email}</p>
-                                        <p className="text-xs text-gray-500">O e-mail não pode ser alterado</p>
-                                    </div>
-                                    <div>
-                                        <Label>Telefone</Label>
-                                        {editingProfile ? (
-                                            <Input
-                                                value={profileForm.phone}
-                                                onChange={(e) => setProfileForm(prev => ({ ...prev, phone: e.target.value }))}
-                                                placeholder="(00) 00000-0000"
-                                            />
-                                        ) : (
-                                            <p className="text-gray-800">{profile?.phone || "-"}</p>
-                                        )}
-                                    </div>
-
-                                    {editingProfile && (
-                                        <div className="flex gap-2 pt-2">
-                                            <Button
-                                                onClick={handleSaveProfile}
-                                                className="bg-pink-500 hover:bg-pink-600"
-                                                disabled={savingProfile}
-                                            >
-                                                {savingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                                                Salvar
-                                            </Button>
-                                            <Button variant="outline" onClick={() => setEditingProfile(false)}>
-                                                Cancelar
-                                            </Button>
+                                    {profile?.phone && (
+                                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                            <Phone className="h-5 w-5 text-gray-400" />
+                                            <div>
+                                                <p className="text-xs text-gray-500">Telefone</p>
+                                                <p className="font-medium">{profile.phone}</p>
+                                            </div>
                                         </div>
                                     )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                    </Tabs>
-                </motion.div>
-            </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Change Password */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Lock className="h-5 w-5 text-pink-500" />
+                                    Alterar Senha
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid gap-4 max-w-md">
+                                    <div>
+                                        <Label htmlFor="new-password">Nova Senha</Label>
+                                        <Input
+                                            id="new-password"
+                                            type="password"
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            placeholder="Mínimo 6 caracteres"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="confirm-password">Confirmar Nova Senha</Label>
+                                        <Input
+                                            id="confirm-password"
+                                            type="password"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            placeholder="Digite novamente"
+                                        />
+                                    </div>
+                                    <Button
+                                        onClick={handleChangePassword}
+                                        disabled={changingPassword || !newPassword || !confirmPassword}
+                                        className="bg-pink-500 hover:bg-pink-600 w-fit"
+                                    >
+                                        {changingPassword ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                Alterando...
+                                            </>
+                                        ) : (
+                                            "Alterar Senha"
+                                        )}
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Help */}
+                        <div className="p-4 bg-pink-50 rounded-lg text-center">
+                            <p className="text-sm text-gray-600 mb-2">Precisa de ajuda?</p>
+                            <a
+                                href="https://wa.me/5522997890934?text=Olá! Preciso de ajuda com minha conta."
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-pink-600 hover:text-pink-700 font-medium text-sm"
+                            >
+                                Fale conosco no WhatsApp →
+                            </a>
+                        </div>
+                    </div>
+                </TabsContent>
+            </Tabs>
         </div>
+    )
+}
+
+export default function MinhaContaPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center pt-20">
+                <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+            </div>
+        }>
+            <MinhaContaContent />
+        </Suspense>
     )
 }

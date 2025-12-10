@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Eye, LogOut, Package, TrendingUp, Shuffle, Plus, Edit } from "lucide-react"
+import { Eye, LogOut, Package, TrendingUp, Shuffle, Plus, Edit, Ticket } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
@@ -183,6 +183,13 @@ function AdminPageContent() {
                   <Link href="/admin/carousel" className="flex flex-col items-center gap-2">
                     <Shuffle className="h-8 w-8" />
                     <span className="text-lg">Configurar Carrossel</span>
+                  </Link>
+                </Button>
+
+                <Button asChild variant="outline" className="bg-white h-auto py-6 border-amber-200 hover:bg-amber-50">
+                  <Link href="/admin/coupons" className="flex flex-col items-center gap-2 text-amber-700">
+                    <Ticket className="h-8 w-8" />
+                    <span className="text-lg">Cupons de Desconto</span>
                   </Link>
                 </Button>
               </div>

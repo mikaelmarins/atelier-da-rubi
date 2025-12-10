@@ -120,10 +120,10 @@ function CheckoutSuccessContent() {
 
             {/* Action Buttons */}
             <div className="space-y-3 w-full">
-                <Link href="/meus-pedidos" className="block">
+                <Link href="/catalogo" className="block">
                     <Button className="w-full bg-pink-600 hover:bg-pink-700">
                         <Package className="h-4 w-4 mr-2" />
-                        Acompanhar Pedido
+                        Continuar Explorando
                     </Button>
                 </Link>
 

@@ -100,7 +100,7 @@ export default function Header() {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/minha-conta" className="flex items-center gap-2 cursor-pointer">
+                      <Link href="/minha-conta?tab=pedidos" className="flex items-center gap-2 cursor-pointer">
                         <Package className="h-4 w-4" />
                         Meus Pedidos
                       </Link>
@@ -190,11 +190,6 @@ export default function Header() {
                     <NavLink href="/catalogo" onClick={() => setIsOpen(false)}>
                       <ShoppingBag className="h-5 w-5" /> Catálogo
                     </NavLink>
-                    {user && (
-                      <NavLink href="/minha-conta" onClick={() => setIsOpen(false)}>
-                        <User className="h-5 w-5" /> Minha Conta
-                      </NavLink>
-                    )}
                     <NavLink href="/#sobre" onClick={() => setIsOpen(false)}>
                       <Info className="h-5 w-5" /> Sobre
                     </NavLink>

@@ -53,9 +53,6 @@ export default function CatalogGrid() {
   const [sortBy, setSortBy] = useState("newest")
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false)
 
-  // Debug logging
-  console.log("[CatalogGrid] loading:", loading, "products count:", products?.length)
-
   // Filter and Sort Logic
   const filteredAndSortedProducts = useMemo(() => {
     let result = [...products]

@@ -768,9 +768,9 @@ export default function CheckoutPage() {
                                                 Continuar Comprando
                                             </Button>
                                         </Link>
-                                        <Link href="/minha-conta">
+                                        <Link href="/">
                                             <Button className="bg-pink-500 hover:bg-pink-600">
-                                                Ver Meus Pedidos
+                                                Voltar ao Início
                                             </Button>
                                         </Link>
                                     </div>

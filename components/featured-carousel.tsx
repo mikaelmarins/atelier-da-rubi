@@ -11,12 +11,13 @@ import { formatCurrency } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 
 export default function FeaturedCarousel() {
-  const { products } = useProducts()
+  const { products, loading } = useProducts()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [direction, setDirection] = useState(0) // -1 left, 1 right
   const [featuredProductIds, setFeaturedProductIds] = useState<number[]>([])
   const [touchStart, setTouchStart] = useState<number | null>(null)
   const [touchEnd, setTouchEnd] = useState<number | null>(null)
+  const [configLoaded, setConfigLoaded] = useState(false)
 
   // Ref para o timer do auto-advance
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -35,6 +36,7 @@ export default function FeaturedCarousel() {
 
         if (data && data.length > 0) {
           setFeaturedProductIds(data.map((item) => item.product_id))
+          setConfigLoaded(true)
           return
         }
       } catch (error) {
@@ -46,6 +48,7 @@ export default function FeaturedCarousel() {
       if (savedCarousel) {
         try {
           setFeaturedProductIds(JSON.parse(savedCarousel))
+          setConfigLoaded(true)
           return
         } catch (error) {
           console.error("Error parsing localStorage carousel:", error)
@@ -53,7 +56,11 @@ export default function FeaturedCarousel() {
       }
 
       // 3. Fallback final: produtos marcados como destaque no banco
-      setFeaturedProductIds(products.filter((p) => p.featured).map((p) => p.id))
+      if (products.length > 0) {
+        const featured = products.filter((p) => p.featured).map((p) => p.id)
+        setFeaturedProductIds(featured)
+        setConfigLoaded(true)
+      }
     }
 
     loadCarouselConfig()

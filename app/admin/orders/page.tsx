@@ -137,17 +137,23 @@ function OrdersAdminPageContent() {
 
         setSaving(true)
         try {
-            const { error } = await supabase
-                .from("orders")
-                .update({
+            // Usar API admin para bypass de RLS
+            const response = await fetch('/api/admin/orders', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: selectedOrder.id,
                     status: editStatus,
                     tracking_code: editTrackingCode || null,
-                    tracking_url: editTrackingUrl || null,
-                    updated_at: new Date().toISOString()
+                    tracking_url: editTrackingUrl || null
                 })
-                .eq("id", selectedOrder.id)
+            })
 
-            if (error) throw error
+            const result = await response.json()
+
+            if (!response.ok) {
+                throw new Error(result.error || "Erro ao atualizar pedido")
+            }
 
             // Atualizar lista local
             setOrders(prev => prev.map(o =>
@@ -156,9 +162,9 @@ function OrdersAdminPageContent() {
                     : o
             ))
             setEditDialogOpen(false)
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error updating order:", error)
-            alert("Erro ao atualizar pedido")
+            alert(error.message || "Erro ao atualizar pedido")
         } finally {
             setSaving(false)
         }
