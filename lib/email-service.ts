@@ -389,4 +389,3 @@ export async function sendPasswordResetEmail(name: string, email: string, resetL
     return { success: false, error: error.message }
   }
 }
-

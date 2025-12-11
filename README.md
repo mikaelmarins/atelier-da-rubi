@@ -105,7 +105,7 @@ O projeto foi desenvolvido com foco em:
 
 ### Passos
 
-```bash
+\`\`\`bash
 # Clonar o repositório
 git clone https://github.com/mikaelmarins/atelier-da-rubi.git
 
@@ -121,7 +121,7 @@ cp .env.example .env.local
 
 # Rodar em desenvolvimento
 npm run dev
-```
+\`\`\`
 
 O projeto estará disponível em `http://localhost:3000`
 
@@ -131,7 +131,7 @@ O projeto estará disponível em `http://localhost:3000`
 
 Criar um arquivo `.env.local` na raiz do projeto:
 
-```env
+\`\`\`env
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sua-anon-key
@@ -148,13 +148,13 @@ NEXT_PUBLIC_BASE_URL=http://localhost:3000
 MELHOR_ENVIO_CLIENT_ID=seu-client-id
 MELHOR_ENVIO_CLIENT_SECRET=seu-client-secret
 MELHOR_ENVIO_REDIRECT_URI=http://localhost:3000/api/melhor-envio/callback
-```
+\`\`\`
 
 ---
 
 ## 📁 Estrutura do Projeto
 
-```
+\`\`\`
 atelier-da-rubi/
 ├── app/                      # Páginas (App Router)
 │   ├── admin/               # Painel administrativo
@@ -190,7 +190,7 @@ atelier-da-rubi/
 │   └── email-service.ts     # Serviço de emails
 ├── database/                # Scripts SQL
 └── public/                  # Assets estáticos
-```
+\`\`\`
 
 ---
 
@@ -252,7 +252,7 @@ atelier-da-rubi/
 
 ### Principais Tabelas
 
-```sql
+\`\`\`sql
 -- Usuários (gerenciado pelo Supabase Auth)
 profiles (id, name, email, phone, role)
 
@@ -271,7 +271,7 @@ coupons (id, code, discount_type, discount_value, free_shipping, ...)
 
 -- Carrossel
 carousel_config (id, product_id, display_order)
-```
+\`\`\`
 
 ### RLS (Row Level Security)
 - Habilitado em todas as tabelas

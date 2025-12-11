@@ -197,13 +197,13 @@ O **Atelier da Rubi** é uma loja virtual especializada em roupas e acessórios 
 
 ## 📈 MÉTRICAS DE COMPLETUDE
 
-```
+\`\`\`
 Total de Funcionalidades Mapeadas: 65
 Implementadas: 48 (74%)
 Pendentes Alta Prioridade: 6 (9%)
 Pendentes Média Prioridade: 7 (11%)
 Pendentes Baixa Prioridade: 9 (14%)
-```
+\`\`\`
 
 **Conclusão:** O projeto está 74% completo comparado a um e-commerce padrão do segmento. O principal gap é a integração de pagamento, que é bloqueador para go-live. Os diferenciais de personalização e design colocam a loja acima da média do mercado em UX.
 

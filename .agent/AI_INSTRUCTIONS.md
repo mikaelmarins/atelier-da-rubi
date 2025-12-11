@@ -17,7 +17,7 @@
 ## 🏗️ ARQUITETURA E PADRÕES DE CÓDIGO
 
 ### Estrutura de Pastas
-```
+\`\`\`
 app/                    → Páginas e rotas (App Router)
   └── api/              → API Routes (Route Handlers)
 components/             → Componentes React reutilizáveis
@@ -27,7 +27,7 @@ hooks/                  → Custom hooks
 lib/                    → Serviços e utilitários
 database/               → Scripts SQL de migração
 public/                 → Assets estáticos
-```
+\`\`\`
 
 ### Convenções de Nomenclatura
 - **Arquivos:** kebab-case (`product-service.ts`)
@@ -37,7 +37,7 @@ public/                 → Assets estáticos
 - **Tipos/Interfaces:** PascalCase (`interface ProductWithImages`)
 
 ### Padrão de Páginas (App Router)
-```tsx
+\`\`\`tsx
 // app/exemplo/page.tsx
 "use client"  // Só se usar hooks de cliente
 
@@ -50,10 +50,10 @@ export default function ExemploPage() {
         </div>
     )
 }
-```
+\`\`\`
 
 ### Padrão de API Routes
-```tsx
+\`\`\`tsx
 // app/api/exemplo/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
@@ -72,23 +72,23 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 }
-```
+\`\`\`
 
 ---
 
 ## 🔑 AUTENTICAÇÃO E AUTORIZAÇÃO
 
 ### Cliente Supabase
-```typescript
+\`\`\`typescript
 // lib/supabase.ts exporta:
 import { supabase } from "@/lib/supabase"
 
 // Para actions de usuário logado
 const { data: { user } } = await supabase.auth.getUser()
-```
+\`\`\`
 
 ### Context de Auth
-```typescript
+\`\`\`typescript
 // Usar o hook useAuth
 import { useAuth } from "@/context/auth-context"
 
@@ -96,7 +96,7 @@ const { user, profile, signOut, loading } = useAuth()
 
 // profile tem: id, name, email, phone, role
 // role pode ser: "admin" ou "customer"
-```
+\`\`\`
 
 ### Proteção de Rotas Admin
 - APIs admin usam `SUPABASE_SERVICE_ROLE_KEY` para bypass RLS
@@ -107,7 +107,7 @@ const { user, profile, signOut, loading } = useAuth()
 ## 📦 PRINCIPAIS SERVIÇOS
 
 ### ProductServiceSupabase (lib/product-service.ts)
-```typescript
+\`\`\`typescript
 import { ProductServiceSupabase } from "@/lib/product-service"
 
 // Métodos disponíveis:
@@ -117,32 +117,32 @@ await ProductServiceSupabase.createProduct(data)
 await ProductServiceSupabase.updateProduct(id, data)
 await ProductServiceSupabase.deleteProduct(id)
 await ProductServiceSupabase.getStats()
-```
+\`\`\`
 
 ### OrderService (lib/order-service.ts)
-```typescript
+\`\`\`typescript
 import { OrderService } from "@/lib/order-service"
 
 await OrderService.createOrder(orderData)
 await OrderService.getUserOrders(userId)
 await OrderService.updateOrderStatus(orderId, status)
-```
+\`\`\`
 
 ### Email Service (lib/email-service.ts)
-```typescript
+\`\`\`typescript
 import { 
     sendOrderConfirmationEmail,
     sendOrderStatusUpdateEmail,
     sendWelcomeEmail,
     sendPasswordResetEmail
 } from "@/lib/email-service"
-```
+\`\`\`
 
 ---
 
 ## 🛒 CONTEXTO DO CARRINHO
 
-```typescript
+\`\`\`typescript
 import { useCart } from "@/context/cart-context"
 
 const { 
@@ -156,14 +156,14 @@ const {
 } = useCart()
 
 // CartItem: { id, name, price, quantity, image, customization? }
-```
+\`\`\`
 
 ---
 
 ## 🗄️ ESTRUTURA DO BANCO DE DADOS
 
 ### Tabela: products
-```sql
+\`\`\`sql
 id              UUID PRIMARY KEY
 name            TEXT NOT NULL
 description     TEXT
@@ -175,10 +175,10 @@ featured        BOOLEAN DEFAULT false
 stock           INTEGER DEFAULT 0
 allow_customization BOOLEAN DEFAULT false
 created_at      TIMESTAMP
-```
+\`\`\`
 
 ### Tabela: orders
-```sql
+\`\`\`sql
 id               UUID PRIMARY KEY
 user_id          UUID REFERENCES auth.users
 status           TEXT DEFAULT 'pending'
@@ -192,10 +192,10 @@ items            JSONB            -- Array de itens do pedido
 shipping_address JSONB            -- Objeto com endereço
 tracking_code    TEXT
 created_at       TIMESTAMP
-```
+\`\`\`
 
 ### Tabela: coupons
-```sql
+\`\`\`sql
 id                       UUID PRIMARY KEY
 code                     TEXT UNIQUE NOT NULL
 discount_type            TEXT        -- 'percentage' ou 'fixed'
@@ -208,7 +208,7 @@ current_uses             INTEGER DEFAULT 0
 valid_from               TIMESTAMP
 valid_until              TIMESTAMP
 active                   BOOLEAN DEFAULT true
-```
+\`\`\`
 
 ---
 
@@ -224,7 +224,7 @@ active                   BOOLEAN DEFAULT true
 - **Background:** `white`, `gray-50`, `pink-50`
 
 ### Componentes UI (shadcn)
-```typescript
+\`\`\`typescript
 // Imports padrão
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -232,19 +232,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-```
+\`\`\`
 
 ### Ícones (Lucide React)
-```typescript
+\`\`\`typescript
 import { 
     ShoppingCart, Heart, User, Package, 
     Truck, CheckCircle, Clock, XCircle,
     Plus, Minus, Edit, Trash2
 } from "lucide-react"
-```
+\`\`\`
 
 ### Animações (Framer Motion)
-```typescript
+\`\`\`typescript
 import { motion } from "framer-motion"
 
 <motion.div
@@ -252,7 +252,7 @@ import { motion } from "framer-motion"
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.5 }}
 >
-```
+\`\`\`
 
 ---
 
@@ -265,21 +265,21 @@ import { motion } from "framer-motion"
 4. `password_reset` - Recuperação de senha
 
 ### Envio via API
-```typescript
+\`\`\`typescript
 // POST /api/email
 {
     "type": "order_confirmation",
     "data": { /* dados do pedido */ }
 }
-```
+\`\`\`
 
 ### Preview de Emails (Desenvolvimento)
-```
+\`\`\`
 GET /api/email/preview?type=welcome
 GET /api/email/preview?type=order
 GET /api/email/preview?type=shipped
 GET /api/email/preview?type=delivered
-```
+\`\`\`
 
 ---
 
@@ -299,10 +299,10 @@ GET /api/email/preview?type=delivered
 - Upload via API admin
 
 ### 4. Formatação de Moeda
-```typescript
+\`\`\`typescript
 import { formatCurrency } from "@/lib/utils"
 formatCurrency(299.90) // "R$ 299,90"
-```
+\`\`\`
 
 ### 5. Nunca fazer direto no cliente:
 - ❌ Atualizar pedidos de outros usuários
@@ -323,10 +323,10 @@ formatCurrency(299.90) // "R$ 299,90"
 7. Redireciona para página de sucesso
 
 ### Fluxo de Status do Pedido
-```
+\`\`\`
 pending → paid → processing → shipped → delivered
                                     ↘ cancelled
-```
+\`\`\`
 Cada mudança de status:
 1. Atualiza no banco via `/api/admin/orders`
 2. Envia email automático ao cliente
@@ -355,24 +355,24 @@ Cada mudança de status:
 ## 🧪 TESTANDO FUNCIONALIDADES
 
 ### Servidor de Desenvolvimento
-```bash
+\`\`\`bash
 npm run dev
 # Acesse http://localhost:3000
-```
+\`\`\`
 
 ### Testar Emails (sem enviar)
-```bash
+\`\`\`bash
 # Visualizar template no navegador
 http://localhost:3000/api/email/preview?type=welcome
-```
+\`\`\`
 
 ### Testar API de Cupons
-```bash
+\`\`\`bash
 # Validar cupom
 curl -X POST http://localhost:3000/api/coupons \
   -H "Content-Type: application/json" \
   -d '{"action":"validate","code":"TESTE10","orderTotal":100}'
-```
+\`\`\`
 
 ---
 
